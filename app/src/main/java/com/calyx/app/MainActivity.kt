@@ -19,9 +19,8 @@ import com.calyx.app.ui.navigation.BottomNavItem
 import com.calyx.app.ui.navigation.CalyxBottomNavBar
 import com.calyx.app.ui.screens.leaderboard.LeaderboardScreen
 import com.calyx.app.ui.screens.leaderboard.LeaderboardViewModel
-import com.calyx.app.ui.screens.people.PeopleScreen
 import com.calyx.app.ui.screens.permissions.PermissionScreen
-import com.calyx.app.ui.screens.settings.SettingsScreen
+import com.calyx.app.ui.screens.profile.ProfileScreen
 import com.calyx.app.ui.screens.splash.SplashScreen
 import com.calyx.app.ui.screens.stats.StatsScreen
 import com.calyx.app.ui.theme.CalyxTheme
@@ -96,6 +95,11 @@ fun CalyxApp() {
 
 /**
  * Main screen with bottom navigation bar.
+ * 
+ * Tabs:
+ * - Home: Leaderboard
+ * - Stats: Analytics & Insights
+ * - Profile: Settings & Control
  */
 @Composable
 fun MainScreen() {
@@ -105,8 +109,6 @@ fun MainScreen() {
     
     // Shared ViewModel for data across screens
     val leaderboardViewModel: LeaderboardViewModel = viewModel()
-    val uiState by leaderboardViewModel.uiState.collectAsState()
-    val callerStats by leaderboardViewModel.callerStatsList.collectAsState()
     val summary by leaderboardViewModel.summary.collectAsState()
 
     Scaffold(
@@ -115,13 +117,10 @@ fun MainScreen() {
                 currentRoute = currentRoute,
                 onNavigate = { item ->
                     bottomNavController.navigate(item.route) {
-                        // Pop up to the start destination to avoid building up a large stack
                         popUpTo(bottomNavController.graph.findStartDestination().id) {
                             saveState = true
                         }
-                        // Avoid multiple copies of the same destination
                         launchSingleTop = true
-                        // Restore state when navigating back
                         restoreState = true
                     }
                 }
@@ -133,20 +132,23 @@ fun MainScreen() {
             startDestination = BottomNavItem.Home.route,
             modifier = Modifier.padding(paddingValues)
         ) {
+            // Home - Leaderboard
             composable(BottomNavItem.Home.route) {
                 LeaderboardScreen(viewModel = leaderboardViewModel)
             }
             
+            // Stats - Analytics & Insights
             composable(BottomNavItem.Stats.route) {
                 StatsScreen(summary = summary)
             }
             
-            composable(BottomNavItem.People.route) {
-                PeopleScreen(contacts = callerStats)
-            }
-            
-            composable(BottomNavItem.Settings.route) {
-                SettingsScreen()
+            // Profile - Settings & Control
+            composable(BottomNavItem.Profile.route) {
+                ProfileScreen(
+                    onClearData = {
+                        leaderboardViewModel.refreshData()
+                    }
+                )
             }
         }
     }

@@ -7,6 +7,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
  * Navigation destinations for the bottom navigation bar.
+ * 
+ * Tabs:
+ * 1. Home - Leaderboard (Trophy icon)
+ * 2. Stats - Analytics & Insights (Chart icon)
+ * 3. Profile - Settings & Control (Person icon)
  */
 sealed class BottomNavItem(
     val route: String,
@@ -24,25 +29,18 @@ sealed class BottomNavItem(
     object Stats : BottomNavItem(
         route = "stats",
         title = "Stats",
-        selectedIcon = Icons.Filled.BarChart,
-        unselectedIcon = Icons.Outlined.BarChart
+        selectedIcon = Icons.Filled.Insights,
+        unselectedIcon = Icons.Outlined.Insights
     )
     
-    object People : BottomNavItem(
-        route = "people",
-        title = "People",
-        selectedIcon = Icons.Filled.People,
-        unselectedIcon = Icons.Outlined.People
-    )
-    
-    object Settings : BottomNavItem(
-        route = "settings",
-        title = "Settings",
-        selectedIcon = Icons.Filled.Settings,
-        unselectedIcon = Icons.Outlined.Settings
+    object Profile : BottomNavItem(
+        route = "profile",
+        title = "Profile",
+        selectedIcon = Icons.Filled.Person,
+        unselectedIcon = Icons.Outlined.Person
     )
     
     companion object {
-        val items = listOf(Home, Stats, People, Settings)
+        val items = listOf(Home, Stats, Profile)
     }
 }
