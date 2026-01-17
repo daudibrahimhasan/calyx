@@ -166,11 +166,18 @@ class CallLogRepository(private val context: Context) {
 
             stats.totalCalls++
             stats.totalDuration += call.duration
+            
+            if (call.duration > 0) {
+                stats.connectedCallCount++
+            }
 
             when (call.callType) {
                 CallEntry.TYPE_INCOMING -> stats.incomingCalls++
                 CallEntry.TYPE_OUTGOING -> stats.outgoingCalls++
-                CallEntry.TYPE_MISSED -> stats.missedCalls++
+                // Group Missed, Voicemail, and Rejected calls together as "Missed"
+                CallEntry.TYPE_MISSED, 
+                CallEntry.TYPE_VOICEMAIL, 
+                CallEntry.TYPE_REJECTED -> stats.missedCalls++
             }
 
             if (stats.firstCallDate == 0L || call.date < stats.firstCallDate) {
@@ -202,7 +209,10 @@ class CallLogRepository(private val context: Context) {
                 outgoingCalls = mutable.outgoingCalls,
                 missedCalls = mutable.missedCalls,
                 totalDuration = mutable.totalDuration,
-                averageDuration = if (mutable.totalCalls > 0) mutable.totalDuration / mutable.totalCalls else 0,
+                // Calculate average based on actual connected calls (Incoming + Outgoing)
+                averageDuration = if (mutable.incomingCalls + mutable.outgoingCalls > 0) 
+                    mutable.totalDuration / (mutable.incomingCalls + mutable.outgoingCalls) 
+                else 0,
                 firstCallDate = mutable.firstCallDate,
                 lastCallDate = mutable.lastCallDate
             )
@@ -273,6 +283,7 @@ class CallLogRepository(private val context: Context) {
         var phoneNumber: String,
         var displayName: String,
         var totalCalls: Int = 0,
+        var connectedCallCount: Int = 0,
         var incomingCalls: Int = 0,
         var outgoingCalls: Int = 0,
         var missedCalls: Int = 0,

@@ -1,28 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- CALYX GREEN EDITION - Fresh Green Palette -->
+    
     <!-- Primary Colors -->
-    <color name="purple_primary">#6750A4</color>
-    <color name="purple_primary_container">#EADDFF</color>
-    <color name="on_primary">#FFFFFF</color>
-    <color name="on_primary_container">#21005D</color>
-
-    <!-- Secondary Colors -->
-    <color name="secondary">#625B71</color>
-    <color name="secondary_container">#E8DEF8</color>
-    <color name="on_secondary">#FFFFFF</color>
-
+    <color name="mint_cream">#E8F8F0</color>
+    <color name="soft_green">#BCE8C7</color>
+    <color name="fresh_green">#89D885</color>
+    <color name="vibrant_green">#4EC651</color>
+    <color name="forest_green">#2BB15D</color>
+    <color name="deep_green">#1C9C70</color>
+    <color name="teal_green">#148189</color>
+    <color name="lime_accent">#8BD852</color>
+    
     <!-- Background Colors -->
-    <color name="background">#FFFBFE</color>
+    <color name="background_base">#F0FDF4</color>
     <color name="surface">#FFFFFF</color>
-    <color name="surface_variant">#E7E0EC</color>
-
-    <!-- Accent Colors -->
-    <color name="gold">#FFD700</color>
-    <color name="silver">#C0C0C0</color>
-    <color name="bronze">#CD7F32</color>
-    <color name="rose_pink">#F48FB1</color>
-
+    <color name="surface_variant">#E8F8F0</color>
+    
+    <!-- Text Colors -->
+    <color name="primary_text">#0F3D2E</color>
+    <color name="secondary_text">#1C6F54</color>
+    <color name="light_text">#FFFFFF</color>
+    <color name="disabled_text">#661C9C70</color>
+    <color name="accent_text">#148189</color>
+    
+    <!-- Semantic Usage -->
+    <color name="primary">#4EC651</color>
+    <color name="primary_container">#BCE8C7</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="on_primary_container">#0F3D2E</color>
+    
+    <color name="secondary">#2BB15D</color>
+    <color name="secondary_container">#E8F8F0</color>
+    <color name="on_secondary">#FFFFFF</color>
+    
     <!-- Status Colors -->
     <color name="error">#B3261E</color>
     <color name="on_error">#FFFFFF</color>
+    <color name="error_container">#F9DEDC</color>
+    
+    <!-- Legacy Accent Colors (mapped to green palette) -->
+    <color name="gold">#8BD852</color>
+    <color name="silver">#89D885</color>
+    <color name="bronze">#1C9C70</color>
+    <color name="rose_pink">#148189</color>
 </resources>

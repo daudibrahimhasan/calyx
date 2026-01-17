@@ -1,6 +1,7 @@
 package com.calyx.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -10,6 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -19,10 +22,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.calyx.app.ui.theme.getAvatarColor
+import com.calyx.app.ui.theme.*
 
 /**
- * Profile image component with photo loading and initials fallback.
+ * Profile image component with green gradient background and initials fallback.
+ * 
+ * Design Spec - Avatar States:
+ * Default: Circular, gradient background
+ * - Gradient based on hash of name
+ * - Options:
+ *   1. #8BD852 → #4EC651 (Lime to Vibrant)
+ *   2. #4EC651 → #2BB15D (Vibrant to Forest)
+ *   3. #2BB15D → #1C9C70 (Forest to Deep)
+ *   4. #1C9C70 → #148189 (Deep to Teal)
+ * - Initials: Lufga Bold, 18sp, White
+ * - Border: 2dp solid rgba(255, 255, 255, 0.6)
+ * - Text shadow: 0 1dp 3dp rgba(0, 0, 0, 0.2)
+ * 
+ * Photo loaded:
+ * - Border: 2dp solid rgba(76, 198, 81, 0.5)
  */
 @Composable
 fun ProfileImage(
@@ -32,13 +50,26 @@ fun ProfileImage(
     modifier: Modifier = Modifier
 ) {
     val initials = getInitials(displayName)
-    val backgroundColor = getAvatarColor(displayName)
+    val avatarGradient = getAvatarGradient(displayName)
+    
+    val gradient = Brush.linearGradient(
+        colors = listOf(avatarGradient.start, avatarGradient.end)
+    )
 
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(backgroundColor),
+            .background(gradient)
+            .then(
+                if (photoUri == null) {
+                    Modifier.border(
+                        width = 2.dp,
+                        color = Color.White.copy(alpha = 0.6f),
+                        shape = CircleShape
+                    )
+                } else Modifier
+            ),
         contentAlignment = Alignment.Center
     ) {
         if (photoUri != null) {
@@ -50,22 +81,26 @@ fun ProfileImage(
                 contentDescription = "Profile photo of $displayName",
                 modifier = Modifier
                     .size(size)
-                    .clip(CircleShape),
+                    .clip(CircleShape)
+                    .border(
+                        width = 2.dp,
+                        color = Color(0x804EC651), // rgba(76, 198, 81, 0.5)
+                        shape = CircleShape
+                    ),
                 contentScale = ContentScale.Crop,
                 onError = {
-                    // Will show initials as fallback (handled by the Box background)
+                    // Will show initials as fallback
                 }
             )
-            // Show initials as fallback overlay (will be hidden when image loads)
         }
         
-        // Always show initials (will be behind the image when loaded)
+        // Show initials when no photo
         if (photoUri == null) {
             Text(
                 text = initials,
                 color = Color.White,
                 fontSize = (size.value / 2.5).sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.titleMedium
             )
         }

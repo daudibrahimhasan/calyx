@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.calyx.app.ui.theme.*
 
 /**
- * Rank badge component showing medal colors for top 3.
+ * Rank badge component with green-themed gradient backgrounds.
  */
 @Composable
 fun RankBadge(
@@ -30,18 +30,18 @@ fun RankBadge(
     size: Dp = 20.dp,
     modifier: Modifier = Modifier
 ) {
-    val (backgroundColor, contentColor) = when (rank) {
-        1 -> Gold to OnGold
-        2 -> Silver to OnSilver
-        3 -> Bronze to OnBronze
-        else -> RosePink to Color.White
+    val (gradient, contentColor) = when (rank) {
+        1 -> Brush.linearGradient(listOf(LimeAccent, VibrantGreen)) to Color.White
+        2 -> Brush.linearGradient(listOf(FreshGreen, ForestGreen)) to PrimaryText
+        3 -> Brush.linearGradient(listOf(ForestGreen, DeepGreen)) to Color.White
+        else -> Brush.linearGradient(listOf(TealGreen, DeepGreen)) to Color.White
     }
 
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(backgroundColor)
+            .background(gradient)
             .border(2.dp, Color.White, CircleShape),
         contentAlignment = Alignment.Center
     ) {
@@ -64,15 +64,15 @@ fun RankBadge(
 }
 
 /**
- * Get gradient brush for rank.
+ * Get gradient brush for rank backgrounds.
  */
 @Composable
 fun getRankGradient(rank: Int): Brush {
     return when (rank) {
-        1 -> Brush.verticalGradient(listOf(GoldLight, Gold, GoldDark))
-        2 -> Brush.verticalGradient(listOf(SilverLight, Silver, SilverDark))
-        3 -> Brush.verticalGradient(listOf(BronzeLight, Bronze, BronzeDark))
-        else -> Brush.verticalGradient(listOf(RosePinkLight, RosePink, RosePinkDark))
+        1 -> CalyxGradients.winnerPodiumGradient
+        2 -> CalyxGradients.silverPodiumGradient
+        3 -> CalyxGradients.bronzePodiumGradient
+        else -> CalyxGradients.tealAccentGradient
     }
 }
 
@@ -81,10 +81,10 @@ fun getRankGradient(rank: Int): Brush {
  */
 fun getRankColor(rank: Int): Color {
     return when (rank) {
-        1 -> Gold
-        2 -> Silver
-        3 -> Bronze
-        else -> RosePink
+        1 -> LimeAccent
+        2 -> FreshGreen
+        3 -> DeepGreen
+        else -> TealGreen
     }
 }
 
@@ -93,9 +93,9 @@ fun getRankColor(rank: Int): Color {
  */
 fun getOnRankColor(rank: Int): Color {
     return when (rank) {
-        1 -> OnGold
-        2 -> OnSilver
-        3 -> OnBronze
+        1 -> Color.White
+        2 -> PrimaryText
+        3 -> Color.White
         else -> Color.White
     }
 }
