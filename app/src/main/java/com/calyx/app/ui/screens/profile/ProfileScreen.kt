@@ -134,7 +134,7 @@ fun ProfileScreen(
                         }
                     )
                     
-                    HorizontalDivider(
+                    Divider(
                         modifier = Modifier.padding(horizontal = 16.dp),
                         color = SoftGreen.copy(alpha = 0.3f)
                     )
@@ -152,7 +152,7 @@ fun ProfileScreen(
                         }
                     )
                     
-                    HorizontalDivider(
+                    Divider(
                         modifier = Modifier.padding(horizontal = 16.dp),
                         color = SoftGreen.copy(alpha = 0.3f)
                     )
@@ -187,7 +187,7 @@ fun ProfileScreen(
                         value = "1.0.0"
                     )
                     
-                    HorizontalDivider(
+                    Divider(
                         modifier = Modifier.padding(horizontal = 16.dp),
                         color = SoftGreen.copy(alpha = 0.3f)
                     )
