@@ -17,33 +17,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.calyx.app.data.models.CallerStats
 import com.calyx.app.data.models.RankingCategory
 import com.calyx.app.ui.theme.*
 import com.calyx.app.utils.DurationFormatter
+import com.calyx.app.utils.PhoneNumberUtils
 
 /**
- * Ranked list item with glass card effect for ranks 4+.
+ * Compact ranked list item for ranks 4+.
  * 
- * Design Spec:
- * - Background: Glass effect with linear gradient
- * - Border: 1dp, rgba(76, 198, 81, 0.25)
- * - Corner radius: 18dp
- * - Margin: 8dp vertical, 16dp horizontal
- * - Padding: 16dp
- * - Backdrop blur: 20px
- * - Shadow: 0 4dp 16dp rgba(28, 156, 112, 0.08)
- * 
- * Hover/Press state:
- * - Background: rgba(139, 216, 82, 0.15)
- * - Border: rgba(76, 198, 81, 0.4)
- * - Scale: 0.98
+ * Design:
+ * - Height: ~56dp (compact)
+ * - Rank: Neon Fern (VibrantGreen) color
+ * - Name: Bold, Primary text (Mist White feel)
+ * - Score: Pill-shaped badge with translucent green background
  */
 @Composable
 fun RankedListItem(
@@ -57,181 +49,127 @@ fun RankedListItem(
     
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = tween(durationMillis = 150),
+        animationSpec = tween(100),
         label = "scale"
     )
     
     val backgroundColor by animateColorAsState(
-        targetValue = if (isPressed) Color(0x268BD852) else Color.Transparent,
-        animationSpec = tween(durationMillis = 150),
-        label = "bgColor"
-    )
-    
-    val borderColor by animateColorAsState(
-        targetValue = if (isPressed) Color(0x664EC651) else Color(0x404EC651),
-        animationSpec = tween(durationMillis = 150),
-        label = "borderColor"
-    )
-    
-    val elevation by animateFloatAsState(
-        targetValue = if (isPressed) 6f else 4f,
-        animationSpec = tween(durationMillis = 150),
-        label = "elevation"
+        targetValue = if (isPressed) VibrantGreen.copy(alpha = 0.08f) else Color.Transparent,
+        animationSpec = tween(100),
+        label = "bg"
     )
 
     val rank = callerStats.getRank(category)
 
-    Box(
+    Row(
         modifier = modifier
             .fillMaxWidth()
+            .height(56.dp)
             .scale(scale)
-            .shadow(
-                elevation = elevation.dp,
-                shape = RoundedCornerShape(18.dp),
-                ambientColor = ShadowLevel1,
-                spotColor = ShadowLevel2
-            )
-            .clip(RoundedCornerShape(18.dp))
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.15f),
-                        Color.White.copy(alpha = 0.08f)
-                    )
-                )
-            )
+            .clip(RoundedCornerShape(12.dp))
             .background(backgroundColor)
-            .border(
-                width = 1.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(18.dp)
-            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
             )
-            .padding(Spacing.listItem)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+        // Rank number - Neon Fern color
+        Text(
+            text = "$rank",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = VibrantGreen,
+            modifier = Modifier.width(28.dp)
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Profile image
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .border(
+                    width = 1.5.dp,
+                    color = VibrantGreen.copy(alpha = 0.3f),
+                    shape = CircleShape
+                )
         ) {
-            // Rank number
-            Box(
-                modifier = Modifier.width(40.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "$rank",
-                    style = RankNumberStyle,
-                    color = ForestGreen
-                )
-            }
+            ProfileImage(
+                photoUri = callerStats.profilePhotoUri,
+                displayName = callerStats.displayName,
+                size = 40.dp
+            )
+        }
 
-            Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
-            // Profile image with border
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .border(
-                        width = 2.dp,
-                        color = Color(0x664EC651), // rgba(76, 198, 81, 0.4)
-                        shape = CircleShape
-                    )
-                    .shadow(
-                        elevation = 2.dp,
-                        shape = CircleShape,
-                        ambientColor = Color(0x1A000000),
-                        spotColor = Color(0x1A000000)
-                    )
-            ) {
-                ProfileImage(
-                    photoUri = callerStats.profilePhotoUri,
-                    displayName = callerStats.displayName,
-                    size = 48.dp
-                )
-            }
+        // Name and subtitle
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = PhoneNumberUtils.getDisplayName(
+                    callerStats.displayName, 
+                    callerStats.phoneNumber
+                ),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = PrimaryText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            
+            Text(
+                text = getSubtitle(callerStats, category),
+                fontSize = 11.sp,
+                color = SecondaryText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
 
-            Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(8.dp))
 
-            // Caller info
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = callerStats.displayName,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = PrimaryText
-                )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                // Stats row
-                Text(
-                    text = getSecondaryText(callerStats, category),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = SecondaryText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Primary metric
-            Column(
-                horizontalAlignment = Alignment.End
-            ) {
-                Text(
-                    text = getPrimaryMetric(callerStats, category),
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = DeepGreen
-                )
-                Text(
-                    text = getMetricLabel(category),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = SecondaryText
-                )
-            }
+        // Score pill badge
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(VibrantGreen.copy(alpha = 0.15f))
+                .padding(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = getScore(callerStats, category),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = VibrantGreen
+            )
         }
     }
 }
 
-private fun getPrimaryMetric(caller: CallerStats, category: RankingCategory): String {
+private fun getScore(caller: CallerStats, category: RankingCategory): String {
     return when (category) {
         RankingCategory.MOST_CALLED -> "${caller.totalCalls}"
         RankingCategory.MOST_TALKED -> DurationFormatter.formatShort(caller.totalDuration)
     }
 }
 
-private fun getMetricLabel(category: RankingCategory): String {
-    return when (category) {
-        RankingCategory.MOST_CALLED -> "calls"
-        RankingCategory.MOST_TALKED -> "total"
-    }
-}
-
-private fun getSecondaryText(caller: CallerStats, category: RankingCategory): String {
+private fun getSubtitle(caller: CallerStats, category: RankingCategory): String {
     return when (category) {
         RankingCategory.MOST_CALLED -> {
             val parts = mutableListOf<String>()
-            if (caller.incomingCalls > 0) parts.add("${caller.incomingCalls} in")
-            if (caller.outgoingCalls > 0) parts.add("${caller.outgoingCalls} out")
-            if (caller.missedCalls > 0) parts.add("${caller.missedCalls} missed")
-            parts.joinToString(" • ")
+            if (caller.incomingCalls > 0) parts.add("${caller.incomingCalls}↓")
+            if (caller.outgoingCalls > 0) parts.add("${caller.outgoingCalls}↑")
+            if (caller.missedCalls > 0) parts.add("${caller.missedCalls}✕")
+            parts.joinToString(" ")
         }
         RankingCategory.MOST_TALKED -> {
             val avg = DurationFormatter.formatAverage(caller.totalDuration, caller.totalCalls)
-            "${caller.totalCalls} calls • $avg"
+            "${caller.totalCalls} calls • avg $avg"
         }
     }
 }

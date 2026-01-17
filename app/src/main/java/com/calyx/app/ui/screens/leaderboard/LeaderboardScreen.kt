@@ -1,7 +1,6 @@
 package com.calyx.app.ui.screens.leaderboard
 
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,6 +8,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,60 +19,37 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.calyx.app.R
 import com.calyx.app.data.models.RankingCategory
 import com.calyx.app.ui.components.*
 import com.calyx.app.ui.theme.*
 import kotlinx.coroutines.delay
 
 /**
- * Main leaderboard screen with green gradient header.
+ * Main leaderboard screen with minimized UI for maximum content visibility.
  * 
- * Design Spec - Top Bar:
- * - Background: Linear gradient (#2BB15D → #4EC651)
- * - Height: 120dp
- * - "Leaderboard" | Lufga Bold, 28sp, White
- * - Refresh icon (top right) | 24dp, White
- * - Glass overlay effect with subtle blur
- * - Shadow: 0 4dp 12dp rgba(28, 156, 112, 0.2)
+ * Design Goals:
+ * - Reclaim 30% vertical space
+ * - Compact toolbar (standard Android style)
+ * - 32dp filter pills
+ * - 40dp HUD stats strip
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LeaderboardScreen(
     viewModel: LeaderboardViewModel = viewModel()
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val selectedTimeRange by viewModel.selectedTimeRange.collectAsState()
     val summary by viewModel.summary.collectAsState()
 
-    // Header slide-in animation
-    var headerVisible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(100)
-        headerVisible = true
-    }
-    
-    val headerOffset by animateFloatAsState(
-        targetValue = if (headerVisible) 0f else -120f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "headerOffset"
-    )
-    
-    val headerAlpha by animateFloatAsState(
-        targetValue = if (headerVisible) 1f else 0f,
-        animationSpec = tween(350, easing = FastOutSlowInEasing),
-        label = "headerAlpha"
-    )
-
-    // Rotating refresh icon animation
+    // Refresh animation
     var isRefreshing by remember { mutableStateOf(false) }
     val infiniteTransition = rememberInfiniteTransition(label = "refresh")
     val refreshRotation by infiniteTransition.animateFloat(
@@ -96,104 +74,110 @@ fun LeaderboardScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Custom gradient header
+            // ========================================
+            // COMPACT TOOLBAR (Standard Android Style)
+            // Height: ~56dp, Left-aligned title, Right actions
+            // ========================================
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .graphicsLayer {
-                        translationY = headerOffset
-                        alpha = headerAlpha
-                    }
-                    .shadow(
-                        elevation = 12.dp,
-                        shape = RoundedCornerShape(bottomStart = 0.dp, bottomEnd = 0.dp),
-                        ambientColor = Color(0x331C9C70),
-                        spotColor = Color(0x331C9C70)
-                    )
                     .background(CalyxGradients.headerGradient)
                     .statusBarsPadding()
-                    .height(120.dp)
+                    .height(56.dp)
             ) {
-                // Glass overlay effect
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.1f),
-                                    Color.Transparent
-                                )
-                            )
-                        )
-                )
-                
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Title - Left aligned, 20sp Bold
                     Text(
                         text = "Leaderboard",
-                        style = MaterialTheme.typography.headlineMedium,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = Color.White,
+                        modifier = Modifier.weight(1f)
                     )
                     
+                    // Share button
                     IconButton(
-                        onClick = { 
-                            viewModel.refreshData()
-                        },
+                        onClick = {
+                            val topContacts = viewModel.getTopTen()
+                            if (topContacts.isNotEmpty()) {
+                                com.calyx.app.ui.share.SharePosterGenerator.shareTopContacts(
+                                    context = context,
+                                    topContacts = topContacts,
+                                    category = selectedCategory
+                                )
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Share",
+                            modifier = Modifier.size(22.dp),
+                            tint = Color.White
+                        )
+                    }
+                    
+                    // Refresh button
+                    IconButton(
+                        onClick = { viewModel.refreshData() },
                         enabled = !uiState.isLoading
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Refresh",
                             modifier = Modifier
-                                .size(24.dp)
+                                .size(22.dp)
                                 .then(
                                     if (isRefreshing) {
-                                        Modifier.graphicsLayer {
-                                            rotationZ = refreshRotation
-                                        }
+                                        Modifier.graphicsLayer { rotationZ = refreshRotation }
                                     } else Modifier
                                 ),
+                            tint = Color.White
+                        )
+                    }
+                    
+                    // Settings button
+                    IconButton(onClick = { /* TODO: Open settings */ }) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            modifier = Modifier.size(22.dp),
                             tint = Color.White
                         )
                     }
                 }
             }
 
-            // Content area with category and time tabs (still on header gradient)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(CalyxGradients.headerGradient)
-            ) {
-                Column {
-                    // Category tabs (Most Called / Most Talked)
-                    CategoryTabs(
-                        selectedCategory = selectedCategory,
-                        onCategoryChange = { viewModel.switchCategory(it) }
-                    )
+            // ========================================
+            // COMPACT FILTER STRIP (32dp)
+            // Segmented pill + Category tabs in one row
+            // ========================================
+            CompactFilterStrip(
+                selectedCategory = selectedCategory,
+                selectedTimeRange = selectedTimeRange,
+                onCategoryChange = { viewModel.switchCategory(it) },
+                onTimeRangeChange = { viewModel.switchTimeRange(it) }
+            )
 
-                    // Time filter tabs (Weekly / All Time)
-                    TimeFilterTabs(
-                        selectedRange = selectedTimeRange,
-                        onRangeChange = { viewModel.switchTimeRange(it) }
-                    )
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-            }
+            // ========================================
+            // HUD STATS STRIP (40dp)
+            // ========================================
+            HudStatsStrip(
+                totalCalls = summary.totalCalls,
+                totalContacts = summary.uniqueContacts
+            )
 
-            // Main content area
+            // ========================================
+            // MAIN CONTENT AREA
+            // ========================================
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
                     .background(BackgroundBase)
             ) {
                 when {
@@ -217,7 +201,6 @@ fun LeaderboardScreen(
                     else -> {
                         LeaderboardContent(
                             viewModel = viewModel,
-                            summary = summary,
                             selectedCategory = selectedCategory
                         )
                     }
@@ -230,16 +213,15 @@ fun LeaderboardScreen(
 @Composable
 private fun LeaderboardContent(
     viewModel: LeaderboardViewModel,
-    summary: com.calyx.app.data.repository.CallSummary,
     selectedCategory: RankingCategory
 ) {
     val (first, second, third) = viewModel.getTopThree()
     val restOfList = viewModel.getRestOfList()
 
-    // Staggered entrance animation for list items
+    // Staggered entrance animation
     var listVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        delay(300)
+        delay(200)
         listVisible = true
     }
 
@@ -247,16 +229,7 @@ private fun LeaderboardContent(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
-        // Stats card
-        item {
-            StatsCard(
-                summary = summary,
-                category = selectedCategory,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-            )
-        }
-
-        // Top 3 podium
+        // Top 3 Podium with "Growth" animation
         item {
             TopThreePodium(
                 firstPlace = first,
@@ -267,73 +240,63 @@ private fun LeaderboardContent(
             )
         }
 
-        // Section divider
+        // Rest of the list as a "Sheet" overlay
         if (restOfList.isNotEmpty()) {
+            // Sheet header
             item {
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Divider(
-                        modifier = Modifier.weight(1f),
-                        thickness = 1.dp,
-                        color = VibrantGreen.copy(alpha = 0.2f)
-                    )
                     Text(
                         text = "Rankings",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = SecondaryText,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                    Divider(
-                        modifier = Modifier.weight(1f),
-                        thickness = 1.dp,
-                        color = VibrantGreen.copy(alpha = 0.2f)
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = SecondaryText
                     )
                 }
             }
-        }
 
-        // Rest of the list (4th place onwards) with staggered animation
-        items(
-            items = restOfList,
-            key = { it.phoneNumber }
-        ) { caller ->
-            val index = restOfList.indexOf(caller)
-            var itemVisible by remember { mutableStateOf(false) }
-            
-            LaunchedEffect(listVisible) {
-                if (listVisible) {
-                    delay(index * 60L)
-                    itemVisible = true
-                }
-            }
-            
-            val itemAlpha by animateFloatAsState(
-                targetValue = if (itemVisible) 1f else 0f,
-                animationSpec = tween(300, easing = FastOutSlowInEasing),
-                label = "itemAlpha"
-            )
-            
-            val itemOffset by animateFloatAsState(
-                targetValue = if (itemVisible) 0f else 20f,
-                animationSpec = tween(300, easing = FastOutSlowInEasing),
-                label = "itemOffset"
-            )
-            
-            RankedListItem(
-                callerStats = caller,
-                category = selectedCategory,
-                onClick = { /* Future: show caller details */ },
-                modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                    .graphicsLayer {
-                        alpha = itemAlpha
-                        translationY = itemOffset
+            // List items with staggered animation
+            items(
+                items = restOfList,
+                key = { it.phoneNumber }
+            ) { caller ->
+                val index = restOfList.indexOf(caller)
+                var itemVisible by remember { mutableStateOf(false) }
+                
+                LaunchedEffect(listVisible) {
+                    if (listVisible) {
+                        delay(index * 40L)
+                        itemVisible = true
                     }
-            )
+                }
+                
+                val itemAlpha by animateFloatAsState(
+                    targetValue = if (itemVisible) 1f else 0f,
+                    animationSpec = tween(250, easing = FastOutSlowInEasing),
+                    label = "itemAlpha"
+                )
+                
+                val itemOffset by animateFloatAsState(
+                    targetValue = if (itemVisible) 0f else 16f,
+                    animationSpec = tween(250, easing = FastOutSlowInEasing),
+                    label = "itemOffset"
+                )
+                
+                RankedListItem(
+                    callerStats = caller,
+                    category = selectedCategory,
+                    onClick = { /* Future: show caller details */ },
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 3.dp)
+                        .graphicsLayer {
+                            alpha = itemAlpha
+                            translationY = itemOffset
+                        }
+                )
+            }
         }
     }
 }

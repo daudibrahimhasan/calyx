@@ -64,4 +64,70 @@ object PhoneNumberUtils {
                phoneNumber == "-1" ||
                phoneNumber == "-2"
     }
+    
+    /**
+     * Get display name with privacy considerations.
+     * - If contact has a name: return the name
+     * - If unknown/unsaved: return "Unknown" with masked number
+     */
+    fun getDisplayName(contactName: String?, phoneNumber: String): String {
+        val hasRealName = !contactName.isNullOrBlank() && 
+                          contactName != phoneNumber &&
+                          !isLikelyPhoneNumber(contactName)
+        
+        return if (hasRealName) {
+            contactName!!
+        } else {
+            "Unknown ${maskPhoneNumber(phoneNumber)}"
+        }
+    }
+    
+    /**
+     * Mask a phone number for privacy.
+     * Format: +880 171 *** **89 (shows first 3 and last 2 digits)
+     */
+    fun maskPhoneNumber(phoneNumber: String): String {
+        val cleaned = phoneNumber.filter { it.isDigit() || it == '+' }
+        
+        if (cleaned.length < 6) {
+            return "(*****)"
+        }
+        
+        return when {
+            cleaned.startsWith("+") -> {
+                val digits = cleaned.drop(1)
+                when {
+                    digits.length >= 10 -> {
+                        val countryCode = when {
+                            digits.startsWith("880") -> "+880"
+                            digits.startsWith("1") && digits.length == 11 -> "+1"
+                            digits.startsWith("44") -> "+44"
+                            digits.startsWith("91") -> "+91"
+                            else -> "+${digits.take(2)}"
+                        }
+                        val remaining = digits.drop(countryCode.length - 1)
+                        val visible = remaining.take(3)
+                        val lastTwo = remaining.takeLast(2)
+                        "($countryCode $visible***$lastTwo)"
+                    }
+                    else -> "(****${digits.takeLast(2)})"
+                }
+            }
+            cleaned.length >= 10 -> {
+                val visible = cleaned.take(3)
+                val lastTwo = cleaned.takeLast(2)
+                "($visible***$lastTwo)"
+            }
+            else -> "(****${cleaned.takeLast(2)})"
+        }
+    }
+    
+    /**
+     * Check if a string looks like a phone number rather than a name.
+     */
+    private fun isLikelyPhoneNumber(text: String): Boolean {
+        val digitsCount = text.count { it.isDigit() }
+        val totalLength = text.length
+        return totalLength > 0 && (digitsCount.toFloat() / totalLength) > 0.6f
+    }
 }

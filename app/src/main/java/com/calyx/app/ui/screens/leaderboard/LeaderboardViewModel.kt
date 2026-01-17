@@ -136,6 +136,13 @@ class LeaderboardViewModel(application: Application) : AndroidViewModel(applicat
     fun getRestOfList(): List<CallerStats> {
         return getSortedStats(_callerStatsList.value).drop(3)
     }
+    
+    /**
+     * Get top 10 callers for share poster.
+     */
+    fun getTopTen(): List<CallerStats> {
+        return getSortedStats(_callerStatsList.value).take(10)
+    }
 
     override fun onCleared() {
         super.onCleared()
