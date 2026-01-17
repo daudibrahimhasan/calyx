@@ -80,7 +80,7 @@ fun TopThreePodium(
                 modifier = Modifier.weight(0.3f),
                 contentAlignment = Alignment.BottomCenter
             ) {
-                AnimatedVisibility(
+                androidx.compose.animation.AnimatedVisibility(
                     visible = showSecond && secondPlace != null,
                     enter = slideInVertically(
                         initialOffsetY = { it },
@@ -108,7 +108,7 @@ fun TopThreePodium(
                 modifier = Modifier.weight(0.4f),
                 contentAlignment = Alignment.BottomCenter
             ) {
-                AnimatedVisibility(
+                androidx.compose.animation.AnimatedVisibility(
                     visible = showFirst && firstPlace != null,
                     enter = slideInVertically(
                         initialOffsetY = { it },
@@ -137,7 +137,7 @@ fun TopThreePodium(
                 modifier = Modifier.weight(0.3f),
                 contentAlignment = Alignment.BottomCenter
             ) {
-                AnimatedVisibility(
+                androidx.compose.animation.AnimatedVisibility(
                     visible = showThird && thirdPlace != null,
                     enter = slideInVertically(
                         initialOffsetY = { it },

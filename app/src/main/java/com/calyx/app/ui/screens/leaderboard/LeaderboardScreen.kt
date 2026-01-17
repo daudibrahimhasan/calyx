@@ -276,7 +276,7 @@ private fun LeaderboardContent(
                         .padding(horizontal = 24.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    HorizontalDivider(
+                    Divider(
                         modifier = Modifier.weight(1f),
                         thickness = 1.dp,
                         color = VibrantGreen.copy(alpha = 0.2f)
@@ -287,7 +287,7 @@ private fun LeaderboardContent(
                         color = SecondaryText,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
-                    HorizontalDivider(
+                    Divider(
                         modifier = Modifier.weight(1f),
                         thickness = 1.dp,
                         color = VibrantGreen.copy(alpha = 0.2f)
