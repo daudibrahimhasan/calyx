@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Calyx</string>
+    <string name="permission_title">Calyx needs your permission</string>
+    <string name="permission_subtitle">To create your personalized leaderboard</string>
+    <string name="call_log_permission_title">Call Log Access</string>
+    <string name="call_log_permission_desc">To analyze your calling patterns and identify your most frequent contacts</string>
+    <string name="contacts_permission_title">Contacts Access</string>
+    <string name="contacts_permission_desc">To show contact names and photos in your leaderboard</string>
+    <string name="grant_permissions">Grant Permissions</string>
+    <string name="privacy_notice">Your data never leaves your device</string>
+    <string name="open_settings">Open Settings</string>
+    <string name="permission_denied_title">Permissions Required</string>
+    <string name="permission_denied_message">Calyx needs call log and contacts permissions to show your leaderboard. Please grant them in Settings.</string>
+    <string name="leaderboard">Leaderboard</string>
+    <string name="most_called">Most Called</string>
+    <string name="most_talked">Most Talked</string>
+    <string name="weekly">Weekly</string>
+    <string name="all_time">All Time</string>
+    <string name="total_calls">Total Calls</string>
+    <string name="total_time">Total Time</string>
+    <string name="contacts">Contacts</string>
+    <string name="calls">calls</string>
+    <string name="incoming">incoming</string>
+    <string name="outgoing">outgoing</string>
+    <string name="missed">missed</string>
+    <string name="avg_call">Avg</string>
+    <string name="no_calls_title">No calls yet</string>
+    <string name="no_calls_message">Make some calls and they\'ll appear here!</string>
+    <string name="loading_message">Analyzing your calls…</string>
+    <string name="unknown">Unknown</string>
+    <string name="private_number">Private Number</string>
+    <string name="refresh">Refresh</string>
+</resources>
