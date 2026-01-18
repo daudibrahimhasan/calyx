@@ -3,6 +3,10 @@
 # Keep data classes
 -keep class com.calyx.app.data.models.** { *; }
 
+# Keep navigation classes (sealed class and its objects)
+-keep class com.calyx.app.ui.navigation.** { *; }
+-keepclassmembers class com.calyx.app.ui.navigation.BottomNavItem$* { *; }
+
 # Keep ViewModel classes
 -keep class * extends androidx.lifecycle.ViewModel { *; }
 

@@ -87,10 +87,21 @@ fun LoadingState(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = LinearEasing),
+            animation = tween(1000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "rotation"
+    )
+    
+    // Animated progress for the arc (sweeps from 0.1 to 0.9 and back)
+    val progress by infiniteTransition.animateFloat(
+        initialValue = 0.1f,
+        targetValue = 0.8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = EaseInOut),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "progress"
     )
     
     // Scale pulse animation
@@ -126,7 +137,10 @@ fun LoadingState(
                 ),
             contentAlignment = Alignment.Center
         ) {
+            // Use determinate CircularProgressIndicator with custom animation
+            // This avoids the broken keyframe animation in the indeterminate version
             CircularProgressIndicator(
+                progress = progress,
                 modifier = Modifier
                     .size(40.dp)
                     .graphicsLayer {
