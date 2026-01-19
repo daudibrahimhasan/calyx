@@ -1,72 +1,83 @@
-# Calyx - Call Log Analyzer
+# Calyz - Smart Call Insights & Leaderboards
 
-A beautiful Android app that transforms your call history into interactive leaderboards showing your most frequent contacts.
+**calyz** is a premium Android application designed to transform your raw call history into meaningful, actionable insights. Featuring a state-of-the-art Jetpack Compose UI, it identifies your most frequent contacts, analyzes communication trends, and provides a beautiful interface for visualizing your calling habits.
 
-## Features
+---
 
-- 📊 **Dual Rankings** - View contacts by "Most Called" or "Most Talked"
-- 🏆 **Beautiful Leaderboard** - Podium display for top 3 with animated entries
-- ⏱️ **Time Filters** - Switch between Weekly and All Time views
-- 📱 **Contact Integration** - Shows names and profile photos
-- 🔒 **100% Privacy** - All data stays on your device
+## ✨ Key Features
 
-## Tech Stack
+- 🏆 **Dynamic Leaderboards** – Instantly rank your connections using "Most Called" (frequency) or "Most Talked" (duration) metrics.
+- 📈 **Advanced Analytics** – Track your communication health with activity heatmaps and week-over-week trend comparisons.
+- ⚡ **Optimized Performance** – Features an incremental sync engine with a local Room database for near-instant load times.
+- 📅 **Flexible Time-Control** – Seamlessly toggle between **Weekly** snapshots and **All-Time** historical data.
+- 🎨 **Premium Aesthetics** – A high-end design system featuring glassmorphism, fluid animations, and a curated color palette.
+- 🔒 **Privacy First** – Your data is yours. All call logs are processed and stored strictly on-device. No external API calls, no tracking.
 
-- **Language:** Kotlin
-- **UI:** Jetpack Compose with Material Design 3
-- **Architecture:** MVVM with StateFlow
-- **Min SDK:** Android 8.0 (API 26)
+---
+
+## 🛠️ Technology Stack
+
+- **Framework:** Jetpack Compose (Material Design 3)
+- **Architecture:** MVVM (Model-View-ViewModel) with Kotlin Coroutines & StateFlow
+- **Database:** Room Persistence Library (Offline-first architecture)
+- **Dependency Management:** Gradle Kotlin DSL (KTS)
+- **Minimum SDK:** Android 8.0 (API 26)
 - **Target SDK:** Android 14 (API 34)
+- **Tooling:** Android Gradle Plugin 8.2.2+ (Java 21 Compatible)
 
-## Building the Project
+---
+
+## 🏗️ Project Architecture
+
+```text
+com.calyx.app/
+├── data/
+│   ├── local/          # Room DB, Entity definitions, and DAOs
+│   ├── models/         # Core data models (CallerStats, TimeRange, etc.)
+│   └── repository/     # Optimized CallLogRepository with sync logic
+├── ui/
+│   ├── theme/          # Design system tokens and typography
+│   ├── screens/        # Feature screens (Leaderboard, Stats, Profile)
+│   ├── components/     # Reusable UI elements (RankedList, Podium)
+│   └── share/          # Utilities for generating shareable contact posters
+├── utils/              # Specialized date and phone number processors
+└── MainActivity.kt     # App entry point and navigation host
+```
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Android Studio Hedgehog (2023.1.1) or newer
-- JDK 17
-- Android SDK with API 34
+- **Android Studio** Hedgehog (2023.1.1) or newer
+- **JDK 17 or 21**
+- **Android SDK** API 34+
 
-### Steps
+### Installation
 
-1. Clone the repository
-2. Open the project in Android Studio
-3. Sync Gradle files
-4. Run on an emulator or device
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/daudibrahimhasan/calyx.git
+   ```
+2. Open the project in Android Studio.
+3. Sync Gradle files (requires internet connection).
+4. Run on a physical device (recommended for real call log data) or emulator.
 
-```bash
-# Or build via command line
-./gradlew assembleDebug
-```
+---
 
-## Required Permissions
+## 🛡️ Permissions
 
-- `READ_CALL_LOG` - Access call history for analysis
-- `READ_CONTACTS` - Display contact names and photos
+To provide its core functionality, **calyz** requires:
 
-## Project Structure
+- `READ_CALL_LOG`: To analyze your communication patterns.
+- `READ_CONTACTS`: To display names and profile photos instead of raw numbers.
 
-```
-com.calyx.app/
-├── data/
-│   ├── models/         # Data classes (CallerStats, CallEntry, etc.)
-│   └── repository/     # CallLogRepository for data access
-├── ui/
-│   ├── theme/          # Material 3 theming
-│   ├── screens/        # Splash, Permissions, Leaderboard screens
-│   └── components/     # Reusable UI components
-├── utils/              # Utility functions
-└── MainActivity.kt     # App entry point
-```
+---
 
-## Screenshots
-
-_Coming soon_
-
-## License
+## 📄 License
 
 MIT License
 
-## Author
-
-Built by @daudibrahimhasan  
-A product of Nexasity AI
+**Built with ❤️ by @daudibrahimhasan**  
+_A Product of Nexasity AI_
