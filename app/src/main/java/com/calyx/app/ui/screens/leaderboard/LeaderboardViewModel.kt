@@ -49,8 +49,23 @@ class LeaderboardViewModel(application: Application) : AndroidViewModel(applicat
     private val _summary = MutableStateFlow(CallSummary(0, 0L, 0, 0, 0, 0))
     val summary: StateFlow<CallSummary> = _summary.asStateFlow()
 
+    // ========== STATS SCREEN DATA (REAL) ==========
+    
+    // Daily call counts for heatmap (last 35 days) - List of counts ordered from oldest to newest
+    private val _dailyCallCounts = MutableStateFlow<List<Int>>(emptyList())
+    val dailyCallCounts: StateFlow<List<Int>> = _dailyCallCounts.asStateFlow()
+    
+    // This week's call data (Mon-Sun)
+    private val _thisWeekCalls = MutableStateFlow(listOf(0, 0, 0, 0, 0, 0, 0))
+    val thisWeekCalls: StateFlow<List<Int>> = _thisWeekCalls.asStateFlow()
+    
+    // Last week's call data (Mon-Sun)
+    private val _lastWeekCalls = MutableStateFlow(listOf(0, 0, 0, 0, 0, 0, 0))
+    val lastWeekCalls: StateFlow<List<Int>> = _lastWeekCalls.asStateFlow()
+
     init {
         loadCallLog()
+        loadStatsData()
     }
 
     /**
@@ -81,6 +96,24 @@ class LeaderboardViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     /**
+     * Load data for the Stats screen (heatmap and trends).
+     */
+    private fun loadStatsData() {
+        viewModelScope.launch {
+            try {
+                // Load heatmap data (last 35 days)
+                _dailyCallCounts.value = repository.getDailyCallCounts(35)
+                
+                // Load weekly trend data
+                _thisWeekCalls.value = repository.getWeeklyCallCounts()
+                _lastWeekCalls.value = repository.getLastWeekCallCounts()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /**
      * Switch the ranking category.
      */
     fun switchCategory(category: RankingCategory) {
@@ -104,8 +137,12 @@ class LeaderboardViewModel(application: Application) : AndroidViewModel(applicat
      * Refresh data manually.
      */
     fun refreshData() {
-        repository.clearCache()
-        loadCallLog()
+        viewModelScope.launch {
+            _isLoading.value = true
+            repository.clearAllData()
+            loadCallLog()
+            loadStatsData()
+        }
     }
 
     /**

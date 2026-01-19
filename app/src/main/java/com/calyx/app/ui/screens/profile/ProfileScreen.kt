@@ -38,12 +38,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-// DataStore for preferences
-private val Context.dataStore by preferencesDataStore(name = "calyx_settings")
+// DataStore for ghost mode preference only
+private val Context.settingsDataStore by preferencesDataStore(name = "calyx_user_settings")
 
-object PreferenceKeys {
+object SettingsPreferenceKeys {
     val GHOST_MODE = booleanPreferencesKey("ghost_mode")
-    val DARK_THEME = booleanPreferencesKey("dark_theme")
 }
 
 /**
@@ -61,18 +60,17 @@ fun ProfileScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
-    // State from DataStore
-    var ghostMode by remember { mutableStateOf(false) }
-    var darkTheme by remember { mutableStateOf(false) }
+    // Theme manager for app-wide theme changes
+    val themeManager = rememberThemeManager()
+    val darkTheme by collectThemeState(themeManager)
     
-    // Load preferences
+    // Ghost mode state from DataStore
+    var ghostMode by remember { mutableStateOf(false) }
+    
+    // Load ghost mode preference
     LaunchedEffect(Unit) {
-        ghostMode = context.dataStore.data.map { prefs ->
-            prefs[PreferenceKeys.GHOST_MODE] ?: false
-        }.first()
-        
-        darkTheme = context.dataStore.data.map { prefs ->
-            prefs[PreferenceKeys.DARK_THEME] ?: false
+        ghostMode = context.settingsDataStore.data.map { prefs ->
+            prefs[SettingsPreferenceKeys.GHOST_MODE] ?: false
         }.first()
     }
     
@@ -88,15 +86,22 @@ fun ProfileScreen(
             }
         )
     }
+    
+    // Choose background gradient based on theme
+    val backgroundGradient = if (darkTheme) {
+        CalyxGradients.darkScreenBackgroundGradient
+    } else {
+        CalyxGradients.screenBackgroundGradient
+    }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(CalyxGradients.screenBackgroundGradient)
+            .background(backgroundGradient)
             .verticalScroll(rememberScrollState())
     ) {
         // Profile Header
-        ProfileHeader()
+        ProfileHeader(isDarkTheme = darkTheme)
         
         Spacer(modifier = Modifier.height(24.dp))
         
@@ -104,18 +109,31 @@ fun ProfileScreen(
         Column(
             modifier = Modifier.padding(horizontal = 16.dp)
         ) {
+            // Theme-aware colors
+            val sectionLabelColor = if (darkTheme) MintHighlight else VibrantGreen
+            val cardBgColor = if (darkTheme) MossGreen.copy(alpha = 0.4f) else Color.White
+            val dividerColor = if (darkTheme) SageGreen.copy(alpha = 0.3f) else SoftGreen.copy(alpha = 0.3f)
+            val textColor = if (darkTheme) BrightMint else PrimaryText
+            val secondaryTextColor = if (darkTheme) MutedSage else SecondaryText
+            
             Text(
                 text = "Settings",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = VibrantGreen,
+                color = sectionLabelColor,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
             
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        color = if (darkTheme) MintHighlight.copy(alpha = 0.2f) else Color.Transparent,
+                        shape = RoundedCornerShape(16.dp)
+                    ),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                colors = CardDefaults.cardColors(containerColor = cardBgColor)
             ) {
                 Column {
                     // Ghost Mode Toggle
@@ -124,11 +142,12 @@ fun ProfileScreen(
                         title = "Ghost Mode",
                         subtitle = if (ghostMode) "You're hidden from the leaderboard" else "You're visible on the leaderboard",
                         isChecked = ghostMode,
+                        isDarkTheme = darkTheme,
                         onCheckedChange = { checked ->
                             ghostMode = checked
                             scope.launch {
-                                context.dataStore.edit { prefs ->
-                                    prefs[PreferenceKeys.GHOST_MODE] = checked
+                                context.settingsDataStore.edit { prefs ->
+                                    prefs[SettingsPreferenceKeys.GHOST_MODE] = checked
                                 }
                             }
                         }
@@ -136,30 +155,29 @@ fun ProfileScreen(
                     
                     Divider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = SoftGreen.copy(alpha = 0.3f)
+                        color = dividerColor
                     )
                     
                     // Theme Toggle
                     ThemeToggleItem(
                         isDarkTheme = darkTheme,
                         onThemeChange = { isDark ->
-                            darkTheme = isDark
+                            // Use ThemeManager for app-wide theme change
                             scope.launch {
-                                context.dataStore.edit { prefs ->
-                                    prefs[PreferenceKeys.DARK_THEME] = isDark
-                                }
+                                themeManager.setDarkTheme(isDark)
                             }
                         }
                     )
                     
                     Divider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = SoftGreen.copy(alpha = 0.3f)
+                        color = dividerColor
                     )
                     
                     // Clear Data
                     ClearDataItem(
-                        onClick = { showClearDialog = true }
+                        onClick = { showClearDialog = true },
+                        isDarkTheme = darkTheme
                     )
                 }
             }
@@ -171,31 +189,39 @@ fun ProfileScreen(
                 text = "About",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = VibrantGreen,
+                color = sectionLabelColor,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
             
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        color = if (darkTheme) MintHighlight.copy(alpha = 0.2f) else Color.Transparent,
+                        shape = RoundedCornerShape(16.dp)
+                    ),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                colors = CardDefaults.cardColors(containerColor = cardBgColor)
             ) {
                 Column {
                     SettingsInfoItem(
                         icon = Icons.Outlined.Info,
                         title = "Version",
-                        value = "1.0.0"
+                        value = "1.0.0",
+                        isDarkTheme = darkTheme
                     )
                     
                     Divider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = SoftGreen.copy(alpha = 0.3f)
+                        color = dividerColor
                     )
                     
                     SettingsInfoItem(
                         icon = Icons.Outlined.Security,
                         title = "Privacy",
-                        value = "Data stays on device"
+                        value = "Data stays on device",
+                        isDarkTheme = darkTheme
                     )
                 }
             }
@@ -211,9 +237,9 @@ fun ProfileScreen(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Made with 💚 for call analysis\nCalyx v1.0.0",
+                text = "Made with 💚 for call analysis\nbuilt by @daudibrahimhasan\npowered by Nexasity AI",
                 fontSize = 12.sp,
-                color = SecondaryText.copy(alpha = 0.6f),
+                color = if (darkTheme) MutedSage.copy(alpha = 0.6f) else SecondaryText.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center
             )
         }
@@ -223,28 +249,38 @@ fun ProfileScreen(
 }
 
 @Composable
-private fun ProfileHeader() {
+private fun ProfileHeader(isDarkTheme: Boolean = false) {
+    val headerGradient = if (isDarkTheme) {
+        CalyxGradients.darkHeaderGradient
+    } else {
+        Brush.verticalGradient(colors = listOf(ForestGreen, VibrantGreen))
+    }
+    
+    val accentColor = if (isDarkTheme) MintHighlight else Color.White
+    
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(ForestGreen, VibrantGreen)
-                )
-            )
+            .background(headerGradient)
             .padding(top = 48.dp, bottom = 32.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Avatar
+            // Avatar with glassmorphism effect
             Box(
                 modifier = Modifier
                     .size(100.dp)
                     .clip(CircleShape)
-                    .background(Color.White)
-                    .border(4.dp, Color.White, CircleShape),
+                    .background(
+                        if (isDarkTheme) MossGreen.copy(alpha = 0.5f) else Color.White
+                    )
+                    .border(
+                        width = 4.dp,
+                        color = accentColor.copy(alpha = if (isDarkTheme) 0.3f else 1f),
+                        shape = CircleShape
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
@@ -261,7 +297,7 @@ private fun ProfileHeader() {
                 text = "Calyx User",
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = if (isDarkTheme) BrightMint else Color.White
             )
             
             Spacer(modifier = Modifier.height(4.dp))
@@ -270,7 +306,7 @@ private fun ProfileHeader() {
             Text(
                 text = "user@calyx.app",
                 fontSize = 14.sp,
-                color = Color.White.copy(alpha = 0.8f)
+                color = if (isDarkTheme) MutedSage else Color.White.copy(alpha = 0.8f)
             )
         }
     }
@@ -282,8 +318,13 @@ private fun SettingsToggleItem(
     title: String,
     subtitle: String,
     isChecked: Boolean,
+    isDarkTheme: Boolean = false,
     onCheckedChange: (Boolean) -> Unit
 ) {
+    val accentColor = if (isDarkTheme) MintHighlight else VibrantGreen
+    val textColor = if (isDarkTheme) BrightMint else PrimaryText
+    val secondaryTextColor = if (isDarkTheme) MutedSage else SecondaryText
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -295,14 +336,14 @@ private fun SettingsToggleItem(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(VibrantGreen.copy(alpha = 0.1f)),
+                .background(accentColor.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
-                tint = VibrantGreen
+                tint = accentColor
             )
         }
         
@@ -313,12 +354,12 @@ private fun SettingsToggleItem(
                 text = title,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                color = PrimaryText
+                color = textColor
             )
             Text(
                 text = subtitle,
                 fontSize = 12.sp,
-                color = SecondaryText
+                color = secondaryTextColor
             )
         }
         
@@ -327,9 +368,9 @@ private fun SettingsToggleItem(
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = VibrantGreen,
-                uncheckedThumbColor = SecondaryText,
-                uncheckedTrackColor = SoftGreen.copy(alpha = 0.3f)
+                checkedTrackColor = accentColor,
+                uncheckedThumbColor = secondaryTextColor,
+                uncheckedTrackColor = if (isDarkTheme) SageGreen.copy(alpha = 0.3f) else SoftGreen.copy(alpha = 0.3f)
             )
         )
     }
@@ -340,14 +381,18 @@ private fun ThemeToggleItem(
     isDarkTheme: Boolean,
     onThemeChange: (Boolean) -> Unit
 ) {
+    val accentColor = if (isDarkTheme) MintHighlight else VibrantGreen
+    val textColor = if (isDarkTheme) BrightMint else PrimaryText
+    val secondaryTextColor = if (isDarkTheme) MutedSage else SecondaryText
+    
     val sunColor by animateColorAsState(
-        targetValue = if (!isDarkTheme) LimeAccent else SecondaryText.copy(alpha = 0.4f),
+        targetValue = if (!isDarkTheme) LimeAccent else (if (isDarkTheme) MutedSage else SecondaryText).copy(alpha = 0.5f),
         animationSpec = tween(300),
         label = "sunColor"
     )
     
     val moonColor by animateColorAsState(
-        targetValue = if (isDarkTheme) VibrantGreen else SecondaryText.copy(alpha = 0.4f),
+        targetValue = if (isDarkTheme) NeonGreen else (if (isDarkTheme) MutedSage else SecondaryText).copy(alpha = 0.5f),
         animationSpec = tween(300),
         label = "moonColor"
     )
@@ -362,14 +407,14 @@ private fun ThemeToggleItem(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(VibrantGreen.copy(alpha = 0.1f)),
+                .background(accentColor.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = if (isDarkTheme) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
-                tint = VibrantGreen
+                tint = accentColor
             )
         }
         
@@ -380,20 +425,27 @@ private fun ThemeToggleItem(
                 text = "Theme",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                color = PrimaryText
+                color = textColor
             )
             Text(
                 text = if (isDarkTheme) "Deep Jungle" else "Fresh Mint",
                 fontSize = 12.sp,
-                color = SecondaryText
+                color = secondaryTextColor
             )
         }
         
-        // Sun/Moon toggle
+        // Glassmorphism Sun/Moon toggle
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(20.dp))
-                .background(SoftGreen.copy(alpha = 0.2f))
+                .background(
+                    if (isDarkTheme) MossGreen.copy(alpha = 0.4f) else SoftGreen.copy(alpha = 0.2f)
+                )
+                .border(
+                    width = 1.dp,
+                    color = if (isDarkTheme) MintHighlight.copy(alpha = 0.2f) else Color.Transparent,
+                    shape = RoundedCornerShape(20.dp)
+                )
                 .padding(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -402,7 +454,11 @@ private fun ThemeToggleItem(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(if (!isDarkTheme) Color.White else Color.Transparent)
+                    .background(
+                        if (!isDarkTheme) Color.White 
+                        else if (isDarkTheme) ForestShadow.copy(alpha = 0.5f) 
+                        else Color.Transparent
+                    )
                     .clickable { onThemeChange(false) },
                 contentAlignment = Alignment.Center
             ) {
@@ -421,7 +477,10 @@ private fun ThemeToggleItem(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(if (isDarkTheme) DeepGreen else Color.Transparent)
+                    .background(
+                        if (isDarkTheme) MintHighlight.copy(alpha = 0.3f)
+                        else Color.Transparent
+                    )
                     .clickable { onThemeChange(true) },
                 contentAlignment = Alignment.Center
             ) {
@@ -438,8 +497,12 @@ private fun ThemeToggleItem(
 
 @Composable
 private fun ClearDataItem(
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isDarkTheme: Boolean = false
 ) {
+    val errorColor = Color(0xFFEF4444)
+    val secondaryTextColor = if (isDarkTheme) MutedSage else SecondaryText
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -451,14 +514,14 @@ private fun ClearDataItem(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFEF4444).copy(alpha = 0.1f)),
+                .background(errorColor.copy(alpha = if (isDarkTheme) 0.2f else 0.1f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Outlined.Delete,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
-                tint = Color(0xFFEF4444)
+                tint = errorColor
             )
         }
         
@@ -469,12 +532,12 @@ private fun ClearDataItem(
                 text = "Clear Data",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFFEF4444)
+                color = errorColor
             )
             Text(
                 text = "Reset all call analysis data",
                 fontSize = 12.sp,
-                color = SecondaryText
+                color = secondaryTextColor
             )
         }
         
@@ -482,7 +545,7 @@ private fun ClearDataItem(
             imageVector = Icons.Default.ChevronRight,
             contentDescription = null,
             modifier = Modifier.size(20.dp),
-            tint = SecondaryText.copy(alpha = 0.5f)
+            tint = secondaryTextColor.copy(alpha = 0.5f)
         )
     }
 }
@@ -491,8 +554,13 @@ private fun ClearDataItem(
 private fun SettingsInfoItem(
     icon: ImageVector,
     title: String,
-    value: String
+    value: String,
+    isDarkTheme: Boolean = false
 ) {
+    val accentColor = if (isDarkTheme) MintHighlight else VibrantGreen
+    val textColor = if (isDarkTheme) BrightMint else PrimaryText
+    val secondaryTextColor = if (isDarkTheme) MutedSage else SecondaryText
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -503,14 +571,14 @@ private fun SettingsInfoItem(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(VibrantGreen.copy(alpha = 0.1f)),
+                .background(accentColor.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
-                tint = VibrantGreen
+                tint = accentColor
             )
         }
         
@@ -520,14 +588,14 @@ private fun SettingsInfoItem(
             text = title,
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
-            color = PrimaryText,
+            color = textColor,
             modifier = Modifier.weight(1f)
         )
         
         Text(
             text = value,
             fontSize = 14.sp,
-            color = SecondaryText
+            color = secondaryTextColor
         )
     }
 }

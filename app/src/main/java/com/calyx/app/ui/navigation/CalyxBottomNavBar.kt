@@ -31,6 +31,7 @@ import com.calyx.app.ui.theme.*
  * - Filled icons when active, outlined when inactive
  * - Subtle scale animation on selection
  * - Green accent for active item
+ * - Theme-aware colors (light/dark mode)
  */
 @Composable
 fun CalyxBottomNavBar(
@@ -38,9 +39,13 @@ fun CalyxBottomNavBar(
     onNavigate: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Use MaterialTheme for automatic dark mode support
+    val backgroundColor = MaterialTheme.colorScheme.surface
+    val contentColor = MaterialTheme.colorScheme.onSurface
+    
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = Color.White,
+        color = backgroundColor,
         shadowElevation = 8.dp,
         tonalElevation = 0.dp
     ) {

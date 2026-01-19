@@ -25,8 +25,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calyx.app.data.repository.CallSummary
 import com.calyx.app.ui.theme.*
+import java.text.SimpleDateFormat
+import java.util.*
 import kotlin.math.abs
-import kotlin.random.Random
 
 /**
  * Stats Screen - Personal analytics and insights.
@@ -39,21 +40,38 @@ import kotlin.random.Random
 @Composable
 fun StatsScreen(
     summary: CallSummary,
+    dailyCallCounts: List<Int> = emptyList(), // Real heatmap data (List of 35 ints)
+    thisWeekCalls: List<Int> = listOf(0, 0, 0, 0, 0, 0, 0), // Real weekly data
+    lastWeekCalls: List<Int> = listOf(0, 0, 0, 0, 0, 0, 0), // Real last week data
+    isDarkTheme: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    // Determine gradients and colors based on theme
+    val screenGradient = if (isDarkTheme) CalyxGradients.darkScreenBackgroundGradient else CalyxGradients.screenBackgroundGradient
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val subTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val cardBgColor = MaterialTheme.colorScheme.surface
+
+    // Calculate today's calls (last item in the list)
+    val todayCalls = if (dailyCallCounts.isNotEmpty()) dailyCallCounts.last() else 0
+    
+    // Calculate this week's total calls
+    val thisWeekTotal = thisWeekCalls.sum()
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(CalyxGradients.screenBackgroundGradient)
+            .background(screenGradient)
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
+            .padding(bottom = 80.dp) // Space for bottom nav
     ) {
         // Header
         Text(
             text = "Insights",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = PrimaryText
+            color = textColor
         )
         
         Spacer(modifier = Modifier.height(4.dp))
@@ -61,39 +79,83 @@ fun StatsScreen(
         Text(
             text = "Your personal call analytics",
             fontSize = 14.sp,
-            color = SecondaryText
+            color = subTextColor
         )
         
         Spacer(modifier = Modifier.height(24.dp))
         
-        // Activity Heatmap
-        ActivityHeatmapCard()
+        // Activity Heatmap - Using REAL data
+        ActivityHeatmapCard(
+            dailyCallCounts = dailyCallCounts,
+            cardBgColor = cardBgColor, 
+            textColor = textColor, 
+            subTextColor = subTextColor
+        )
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        // Trend Line Chart
-        TrendLineCard(summary = summary)
+        // Trend Line Chart - Using REAL data
+        TrendLineCard(
+            thisWeekData = thisWeekCalls,
+            lastWeekData = lastWeekCalls,
+            cardBgColor = cardBgColor, 
+            textColor = textColor, 
+            subTextColor = subTextColor
+        )
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        // You vs Average
-        YouVsAverageCard(yourCalls = summary.totalCalls)
+        // You vs Average - Today
+        YouVsAverageCard(
+            title = "You vs. Average - Today",
+            yourCalls = todayCalls,
+            averageCalls = 32, // Average daily calls
+            periodLabel = "today",
+            cardBgColor = cardBgColor, 
+            textColor = textColor, 
+            subTextColor = subTextColor
+        )
         
-        Spacer(modifier = Modifier.height(80.dp) ) // Space for bottom nav
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // You vs Average - This Week
+        YouVsAverageCard(
+            title = "You vs. Average - This Week",
+            yourCalls = thisWeekTotal,
+            averageCalls = 210, // Average weekly calls
+            periodLabel = "this week",
+            cardBgColor = cardBgColor, 
+            textColor = textColor, 
+            subTextColor = subTextColor
+        )
     }
 }
 
 /**
  * Activity Heatmap - 7x5 grid showing last 35 days of activity.
- * Colors range from Mint Cream (0 calls) to Deep Green (high activity).
+ * Uses REAL call log data with consistent color coding.
+ * 
+ * Grid Layout:
+ * - 7 columns (Mon-Sun)
+ * - 5 rows (weeks)
+ * - Cell 0 = 35 days ago, Cell 34 = today (last index of list)
+ * - Days are properly aligned to their day of week
  */
 @Composable
 private fun ActivityHeatmapCard(
-    modifier: Modifier = Modifier
+    dailyCallCounts: List<Int>,
+    modifier: Modifier = Modifier,
+    cardBgColor: Color,
+    textColor: Color,
+    subTextColor: Color
 ) {
-    // Generate mock data for 35 days (would come from repository in real app)
-    val activityData = remember {
-        List(35) { Random.nextInt(0, 20) }
+    // Get the day of week for the first day (34 days ago) - for proper grid alignment
+    val firstDayOfWeek = remember {
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.DAY_OF_YEAR, -34)
+        // Convert to 0=Monday, 6=Sunday
+        val dow = cal.get(Calendar.DAY_OF_WEEK)
+        if (dow == Calendar.SUNDAY) 6 else dow - 2
     }
     
     val daysOfWeek = listOf("M", "T", "W", "T", "F", "S", "S")
@@ -101,7 +163,7 @@ private fun ActivityHeatmapCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = cardBgColor)
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
@@ -115,19 +177,19 @@ private fun ActivityHeatmapCard(
                     text = "Activity Heatmap",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = PrimaryText
+                    color = textColor
                 )
                 
                 Text(
                     text = "Last 35 days",
                     fontSize = 12.sp,
-                    color = SecondaryText
+                    color = subTextColor
                 )
             }
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            // Day labels
+            // Day labels (Mon-Sun)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -136,7 +198,7 @@ private fun ActivityHeatmapCard(
                     Text(
                         text = day,
                         fontSize = 10.sp,
-                        color = SecondaryText,
+                        color = subTextColor,
                         modifier = Modifier.width(36.dp),
                         textAlign = TextAlign.Center
                     )
@@ -145,20 +207,30 @@ private fun ActivityHeatmapCard(
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            // 5 weeks x 7 days grid
-            for (week in 0 until 5) {
+            // Grid: 6 rows x 7 columns to ensure all 35 days fit even with offset
+            // We need to offset by firstDayOfWeek to align correctly
+            
+            for (week in 0 until 6) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    for (day in 0 until 7) {
-                        val index = week * 7 + day
-                        val value = activityData.getOrElse(index) { 0 }
+                    for (dayOfWeek in 0 until 7) {
+                        // Calculate if this cell should have data
+                        // First row: only show cells starting from firstDayOfWeek
+                        val cellIndex = week * 7 + dayOfWeek - firstDayOfWeek
                         
-                        HeatmapCell(
-                            value = value,
-                            maxValue = 20
-                        )
+                        // Check if we have data for this index
+                        if (cellIndex >= 0 && cellIndex < dailyCallCounts.size) {
+                            val count = dailyCallCounts[cellIndex]
+                            HeatmapCell(
+                                value = count,
+                                textColor = textColor
+                            )
+                        } else {
+                            // Empty cell (before data starts or after data ends)
+                            Box(modifier = Modifier.size(36.dp))
+                        }
                     }
                 }
                 
@@ -167,36 +239,37 @@ private fun ActivityHeatmapCard(
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            // Legend
+            // Legend with consistent color scale
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Less",
+                    text = "0",
                     fontSize = 10.sp,
-                    color = SecondaryText
+                    color = subTextColor
                 )
                 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 
-                listOf(0f, 0.25f, 0.5f, 0.75f, 1f).forEach { intensity ->
+                // Color scale legend: 0, 1-5, 6-10, 11-15, 16+
+                listOf(0, 3, 8, 13, 20).forEach { sampleCount ->
                     Box(
                         modifier = Modifier
-                            .size(12.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(getHeatmapColor(intensity))
+                            .size(14.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(getHeatmapColorByCount(sampleCount))
                     )
-                    Spacer(modifier = Modifier.width(2.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                 }
                 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(3.dp))
                 
                 Text(
-                    text = "More",
+                    text = "16+",
                     fontSize = 10.sp,
-                    color = SecondaryText
+                    color = subTextColor
                 )
             }
         }
@@ -206,71 +279,87 @@ private fun ActivityHeatmapCard(
 @Composable
 private fun HeatmapCell(
     value: Int,
-    maxValue: Int
+    textColor: Color
 ) {
-    val intensity = (value.toFloat() / maxValue).coerceIn(0f, 1f)
+    val bgColor = getHeatmapColorByCount(value)
+    // Determine if text should be white (for darker cells)
+    val isHighActivity = value >= 11
     
     Box(
         modifier = Modifier
             .size(36.dp)
             .clip(RoundedCornerShape(6.dp))
-            .background(getHeatmapColor(intensity))
+            .background(bgColor)
             .border(
                 width = 0.5.dp,
-                color = VibrantGreen.copy(alpha = 0.1f),
+                color = Color(0xFF2E7D32).copy(alpha = 0.15f),
                 shape = RoundedCornerShape(6.dp)
             ),
         contentAlignment = Alignment.Center
     ) {
+        // Always show the number (even 0 shows as blank cell)
         if (value > 0) {
             Text(
                 text = "$value",
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (intensity > 0.5f) Color.White else PrimaryText.copy(alpha = 0.7f)
+                color = if (isHighActivity) Color.White else textColor.copy(alpha = 0.8f)
             )
         }
     }
 }
 
-private fun getHeatmapColor(intensity: Float): Color {
+/**
+ * Get heatmap color based on ABSOLUTE call count (not percentage).
+ * This ensures the SAME call count ALWAYS shows the SAME color.
+ * 
+ * Color Scale:
+ * - 0 calls: Very light green (#E8F5E9)
+ * - 1-5 calls: Light green (#A5D6A7)  
+ * - 6-10 calls: Medium green (#66BB6A)
+ * - 11-15 calls: Dark green (#43A047)
+ * - 16+ calls: Darkest green (#2E7D32)
+ */
+private fun getHeatmapColorByCount(count: Int): Color {
     return when {
-        intensity <= 0f -> MintCream
-        intensity < 0.25f -> SoftGreen
-        intensity < 0.5f -> FreshGreen
-        intensity < 0.75f -> VibrantGreen
-        else -> DeepGreen
+        count <= 0 -> Color(0xFFE8F5E9)  // Very light green
+        count <= 5 -> Color(0xFFA5D6A7)   // Light green
+        count <= 10 -> Color(0xFF66BB6A)  // Medium green
+        count <= 15 -> Color(0xFF43A047)  // Dark green
+        else -> Color(0xFF2E7D32)         // Darkest green
     }
 }
 
 /**
  * Trend Line Chart - Smooth Bezier curve showing weekly activity.
+ * Uses REAL call log data.
  */
 @Composable
 private fun TrendLineCard(
-    summary: CallSummary,
-    modifier: Modifier = Modifier
+    thisWeekData: List<Int>,
+    lastWeekData: List<Int>,
+    modifier: Modifier = Modifier,
+    cardBgColor: Color,
+    textColor: Color,
+    subTextColor: Color
 ) {
-    // Mock data for this week and last week
-    val thisWeekData = remember {
-        listOf(12, 8, 15, 10, 18, 22, 14)
-    }
-    val lastWeekData = remember {
-        listOf(10, 12, 9, 14, 11, 16, 13)
-    }
-    
     val thisWeekTotal = thisWeekData.sum()
     val lastWeekTotal = lastWeekData.sum()
     val percentChange = if (lastWeekTotal > 0) {
         ((thisWeekTotal - lastWeekTotal).toFloat() / lastWeekTotal * 100).toInt()
-    } else 0
+    } else if (thisWeekTotal > 0) {
+        100 // If last week was 0 and this week has calls, show 100% increase
+    } else {
+        0
+    }
     
     val isUp = percentChange >= 0
+    val trendColor = if (isUp) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
     
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = cardBgColor)
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
@@ -284,7 +373,7 @@ private fun TrendLineCard(
                     text = "Weekly Trend",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = PrimaryText
+                    color = textColor
                 )
                 
                 Row(
@@ -294,14 +383,14 @@ private fun TrendLineCard(
                         imageVector = if (isUp) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
-                        tint = if (isUp) VibrantGreen else Color(0xFFEF4444)
+                        tint = trendColor
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "${abs(percentChange)}%",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (isUp) VibrantGreen else Color(0xFFEF4444)
+                        color = trendColor
                     )
                 }
             }
@@ -331,7 +420,7 @@ private fun TrendLineCard(
                     Text(
                         text = day,
                         fontSize = 10.sp,
-                        color = SecondaryText
+                        color = subTextColor
                     )
                 }
             }
@@ -349,6 +438,7 @@ private fun BezierLineChart(
         animationSpec = tween(1000, easing = EaseOutCubic),
         label = "progress"
     )
+    val primaryColor = MaterialTheme.colorScheme.primary
     
     Canvas(modifier = modifier) {
         if (data.isEmpty()) return@Canvas
@@ -387,8 +477,8 @@ private fun BezierLineChart(
             path = fillPath,
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    VibrantGreen.copy(alpha = 0.3f),
-                    VibrantGreen.copy(alpha = 0.05f)
+                    primaryColor.copy(alpha = 0.3f),
+                    primaryColor.copy(alpha = 0.05f)
                 )
             )
         )
@@ -409,7 +499,7 @@ private fun BezierLineChart(
         
         drawPath(
             path = linePath,
-            color = VibrantGreen,
+            color = primaryColor,
             style = Stroke(width = 3f, cap = StrokeCap.Round)
         )
         
@@ -421,7 +511,7 @@ private fun BezierLineChart(
                 center = point
             )
             drawCircle(
-                color = VibrantGreen,
+                color = primaryColor,
                 radius = 4f,
                 center = point
             )
@@ -432,22 +522,28 @@ private fun BezierLineChart(
 /**
  * You vs Average comparison bar.
  */
+/**
+ * You vs Average comparison bar.
+ */
 @Composable
 private fun YouVsAverageCard(
+    title: String,
     yourCalls: Int,
-    modifier: Modifier = Modifier
+    averageCalls: Int,
+    periodLabel: String,
+    modifier: Modifier = Modifier,
+    cardBgColor: Color,
+    textColor: Color,
+    subTextColor: Color
 ) {
-    // Mock global average
-    val globalAverage = 85
-    val maxValue = maxOf(yourCalls, globalAverage, 100)
+    val maxValue = maxOf(yourCalls, averageCalls, 10).toFloat()
     
-    // Calculate percentile
-    val percentile = when {
-        yourCalls > globalAverage * 1.5 -> 15
-        yourCalls > globalAverage * 1.2 -> 25
-        yourCalls > globalAverage -> 40
-        yourCalls > globalAverage * 0.8 -> 60
-        else -> 75
+    // Calculate comparison text
+    val difference = yourCalls - averageCalls
+    val comparisonText = when {
+        difference > 0 -> "🏆 You are above average by $difference calls $periodLabel!"
+        difference < 0 -> "You are below average by ${abs(difference)} calls $periodLabel."
+        else -> "You are exactly on average $periodLabel!"
     }
     
     val yourProgress by animateFloatAsState(
@@ -457,24 +553,26 @@ private fun YouVsAverageCard(
     )
     
     val avgProgress by animateFloatAsState(
-        targetValue = globalAverage.toFloat() / maxValue,
+        targetValue = averageCalls.toFloat() / maxValue,
         animationSpec = tween(800, delayMillis = 200, easing = EaseOutCubic),
         label = "avgProgress"
     )
     
+    val primaryColor = MaterialTheme.colorScheme.primary
+    
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = cardBgColor)
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
             Text(
-                text = "You vs. Average",
+                text = title,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = PrimaryText
+                color = textColor
             )
             
             Spacer(modifier = Modifier.height(20.dp))
@@ -489,13 +587,13 @@ private fun YouVsAverageCard(
                         text = "You",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = PrimaryText
+                        color = textColor
                     )
                     Text(
                         text = "$yourCalls calls",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = VibrantGreen
+                        color = primaryColor
                     )
                 }
                 
@@ -506,7 +604,7 @@ private fun YouVsAverageCard(
                         .fillMaxWidth()
                         .height(12.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .background(SoftGreen.copy(alpha = 0.3f))
+                        .background(primaryColor.copy(alpha = 0.1f)) // Lighter background
                 ) {
                     Box(
                         modifier = Modifier
@@ -515,7 +613,7 @@ private fun YouVsAverageCard(
                             .clip(RoundedCornerShape(6.dp))
                             .background(
                                 Brush.horizontalGradient(
-                                    colors = listOf(VibrantGreen, LimeAccent)
+                                    colors = listOf(primaryColor, LimeAccent)
                                 )
                             )
                     )
@@ -524,23 +622,23 @@ private fun YouVsAverageCard(
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            // Global average bar
+            // Average bar
             Column {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Global Average",
+                        text = "Average User",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = PrimaryText
+                        color = textColor
                     )
                     Text(
-                        text = "$globalAverage calls",
+                        text = "$averageCalls calls",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = SecondaryText
+                        color = subTextColor
                     )
                 }
                 
@@ -551,21 +649,21 @@ private fun YouVsAverageCard(
                         .fillMaxWidth()
                         .height(12.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .background(SoftGreen.copy(alpha = 0.3f))
+                        .background(primaryColor.copy(alpha = 0.1f))
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(avgProgress)
                             .fillMaxHeight()
                             .clip(RoundedCornerShape(6.dp))
-                            .background(SecondaryText.copy(alpha = 0.4f))
+                            .background(subTextColor.copy(alpha = 0.4f))
                     )
                 }
             }
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            // Percentile text
+            // Comparison text
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -575,7 +673,7 @@ private fun YouVsAverageCard(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "🏆 You are in the top $percentile% of talkers!",
+                    text = comparisonText,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = DeepGreen

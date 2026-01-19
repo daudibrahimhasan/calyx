@@ -5,9 +5,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,6 +30,7 @@ import com.calyx.app.ui.theme.*
 
 /**
  * Profile image component with green gradient background and initials fallback.
+ * Shows a phone icon for unsaved contacts instead of initials.
  * 
  * Design Spec - Avatar States:
  * Default: Circular, gradient background
@@ -39,6 +44,10 @@ import com.calyx.app.ui.theme.*
  * - Border: 2dp solid rgba(255, 255, 255, 0.6)
  * - Text shadow: 0 1dp 3dp rgba(0, 0, 0, 0.2)
  * 
+ * Unsaved contacts:
+ * - Phone icon instead of initials
+ * - Slightly different gradient (SageGreen → ForestShadow)
+ * 
  * Photo loaded:
  * - Border: 2dp solid rgba(76, 198, 81, 0.5)
  */
@@ -47,14 +56,24 @@ fun ProfileImage(
     photoUri: String?,
     displayName: String,
     size: Dp = 48.dp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isUnsavedContact: Boolean = false
 ) {
-    val initials = getInitials(displayName)
-    val avatarGradient = getAvatarGradient(displayName)
+    val initials = remember(displayName) { getInitials(displayName) }
+    val avatarGradient = remember(displayName) { getAvatarGradient(displayName) }
     
-    val gradient = Brush.linearGradient(
-        colors = listOf(avatarGradient.start, avatarGradient.end)
-    )
+    // Use a muted gradient for unsaved contacts
+    val gradient = remember(isUnsavedContact, avatarGradient) {
+        if (isUnsavedContact) {
+            Brush.linearGradient(
+                colors = listOf(SageGreen, MossGreen)
+            )
+        } else {
+            Brush.linearGradient(
+                colors = listOf(avatarGradient.start, avatarGradient.end)
+            )
+        }
+    }
 
     Box(
         modifier = modifier
@@ -65,7 +84,7 @@ fun ProfileImage(
                 if (photoUri == null) {
                     Modifier.border(
                         width = 2.dp,
-                        color = Color.White.copy(alpha = 0.6f),
+                        color = if (isUnsavedContact) SageGreen.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.6f),
                         shape = CircleShape
                     )
                 } else Modifier
@@ -94,15 +113,24 @@ fun ProfileImage(
             )
         }
         
-        // Show initials when no photo
+        // Show phone icon for unsaved contacts, initials for saved contacts
         if (photoUri == null) {
-            Text(
-                text = initials,
-                color = Color.White,
-                fontSize = (size.value / 2.5).sp,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleMedium
-            )
+            if (isUnsavedContact) {
+                Icon(
+                    imageVector = Icons.Filled.Phone,
+                    contentDescription = "Unsaved contact",
+                    modifier = Modifier.size(size * 0.5f),
+                    tint = Color.White.copy(alpha = 0.9f)
+                )
+            } else {
+                Text(
+                    text = initials,
+                    color = Color.White,
+                    fontSize = (size.value / 2.5).sp,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
         }
     }
 }
@@ -117,13 +145,15 @@ fun ProfileImageWithBadge(
     rank: Int,
     size: Dp = 48.dp,
     badgeSize: Dp = 20.dp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isUnsavedContact: Boolean = false
 ) {
     Box(modifier = modifier) {
         ProfileImage(
             photoUri = photoUri,
             displayName = displayName,
-            size = size
+            size = size,
+            isUnsavedContact = isUnsavedContact
         )
         
         // Badge overlay at bottom-right

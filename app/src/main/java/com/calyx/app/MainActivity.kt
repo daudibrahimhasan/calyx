@@ -24,6 +24,8 @@ import com.calyx.app.ui.screens.profile.ProfileScreen
 import com.calyx.app.ui.screens.splash.SplashScreen
 import com.calyx.app.ui.screens.stats.StatsScreen
 import com.calyx.app.ui.theme.CalyxTheme
+import com.calyx.app.ui.theme.collectThemeState
+import com.calyx.app.ui.theme.rememberThemeManager
 
 /**
  * Main entry point for the Calyx app.
@@ -32,12 +34,21 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            CalyxTheme {
+            // Get theme state from ThemeManager
+            val themeManager = rememberThemeManager()
+            val isDarkTheme by collectThemeState(themeManager)
+            
+            CalyxTheme(darkTheme = isDarkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    CalyxApp()
+                    CalyxApp(
+                        isDarkTheme = isDarkTheme,
+                        onThemeChange = { newTheme ->
+                            // Theme change is handled in ProfileScreen
+                        }
+                    )
                 }
             }
         }
@@ -57,7 +68,10 @@ object Routes {
  * Main app composable with navigation.
  */
 @Composable
-fun CalyxApp() {
+fun CalyxApp(
+    isDarkTheme: Boolean = false,
+    onThemeChange: (Boolean) -> Unit = {}
+) {
     val navController = rememberNavController()
 
     NavHost(
@@ -88,7 +102,7 @@ fun CalyxApp() {
 
         // Main screen with bottom navigation
         composable(Routes.MAIN) {
-            MainScreen()
+            MainScreen(isDarkTheme = isDarkTheme)
         }
     }
 }
@@ -102,7 +116,7 @@ fun CalyxApp() {
  * - Profile: Settings & Control
  */
 @Composable
-fun MainScreen() {
+fun MainScreen(isDarkTheme: Boolean = false) {
     val bottomNavController = rememberNavController()
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: BottomNavItem.Home.route
@@ -110,6 +124,11 @@ fun MainScreen() {
     // Shared ViewModel for data across screens
     val leaderboardViewModel: LeaderboardViewModel = viewModel()
     val summary by leaderboardViewModel.summary.collectAsState()
+    
+    // Stats screen data
+    val dailyCallCounts by leaderboardViewModel.dailyCallCounts.collectAsState()
+    val thisWeekCalls by leaderboardViewModel.thisWeekCalls.collectAsState()
+    val lastWeekCalls by leaderboardViewModel.lastWeekCalls.collectAsState()
 
     Scaffold(
         bottomBar = {
@@ -134,12 +153,21 @@ fun MainScreen() {
         ) {
             // Home - Leaderboard
             composable(BottomNavItem.Home.route) {
-                LeaderboardScreen(viewModel = leaderboardViewModel)
+                LeaderboardScreen(
+                    viewModel = leaderboardViewModel,
+                    isDarkTheme = isDarkTheme
+                )
             }
             
-            // Stats - Analytics & Insights
+            // Stats - Analytics & Insights (with REAL data)
             composable(BottomNavItem.Stats.route) {
-                StatsScreen(summary = summary)
+                StatsScreen(
+                    summary = summary,
+                    dailyCallCounts = dailyCallCounts,
+                    thisWeekCalls = thisWeekCalls,
+                    lastWeekCalls = lastWeekCalls,
+                    isDarkTheme = isDarkTheme
+                )
             }
             
             // Profile - Settings & Control

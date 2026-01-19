@@ -80,9 +80,15 @@ fun CalyxTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            // Use ForestGreen for status bar (header gradient start)
-            window.statusBarColor = ForestGreen.toArgb()
-            // Light status bar icons on green background
+            
+            // Status bar color based on theme
+            window.statusBarColor = if (darkTheme) {
+                DeepJungle.toArgb()  // Dark theme: Deep Jungle
+            } else {
+                ForestGreen.toArgb() // Light theme: Forest Green
+            }
+            
+            // Status bar icons: light on dark background
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
             
             // Navigation bar styling

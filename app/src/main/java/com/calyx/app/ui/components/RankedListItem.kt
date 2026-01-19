@@ -54,7 +54,7 @@ fun RankedListItem(
     )
     
     val backgroundColor by animateColorAsState(
-        targetValue = if (isPressed) VibrantGreen.copy(alpha = 0.08f) else Color.Transparent,
+        targetValue = if (isPressed) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else Color.Transparent,
         animationSpec = tween(100),
         label = "bg"
     )
@@ -76,13 +76,13 @@ fun RankedListItem(
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Rank number - Neon Fern color
+        // Rank number - Primary color (adapts to theme)
         Text(
             text = "$rank",
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            color = VibrantGreen,
-            modifier = Modifier.width(28.dp)
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.width(42.dp) // Widen to fit 3 digits (e.g. 100)
         )
 
         Spacer(modifier = Modifier.width(8.dp))
@@ -94,14 +94,18 @@ fun RankedListItem(
                 .clip(CircleShape)
                 .border(
                     width = 1.5.dp,
-                    color = VibrantGreen.copy(alpha = 0.3f),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
                     shape = CircleShape
                 )
         ) {
             ProfileImage(
                 photoUri = callerStats.profilePhotoUri,
                 displayName = callerStats.displayName,
-                size = 40.dp
+                size = 40.dp,
+                isUnsavedContact = PhoneNumberUtils.isUnsavedContact(
+                    callerStats.displayName,
+                    callerStats.phoneNumber
+                )
             )
         }
 
@@ -118,7 +122,7 @@ fun RankedListItem(
                 ),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = PrimaryText,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -126,7 +130,7 @@ fun RankedListItem(
             Text(
                 text = getSubtitle(callerStats, category),
                 fontSize = 11.sp,
-                color = SecondaryText,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -138,14 +142,14 @@ fun RankedListItem(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(16.dp))
-                .background(VibrantGreen.copy(alpha = 0.15f))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
                 .padding(horizontal = 10.dp, vertical = 4.dp)
         ) {
             Text(
                 text = getScore(callerStats, category),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = VibrantGreen
+                color = MaterialTheme.colorScheme.primary
             )
         }
     }

@@ -71,31 +71,55 @@ val OnErrorLight = Color.White
 val ErrorContainerLight = Color(0xFFF9DEDC)
 val OnErrorContainerLight = Color(0xFF410E0B)
 
-// Dark Theme Colors (Green-tinted dark mode)
-val PrimaryDark = LimeAccent
-val OnPrimaryDark = Color(0xFF0A3D00)
-val PrimaryContainerDark = DeepGreen
-val OnPrimaryContainerDark = MintCream
+// ============================================
+// DARK JUNGLE THEME - Dark Mode
+// ============================================
 
-val SecondaryDark = SoftGreen
-val OnSecondaryDark = Color(0xFF0A3020)
-val SecondaryContainerDark = Color(0xFF1A5040)
-val OnSecondaryContainerDark = MintCream
+// Dark Jungle Primary Colors
+val DeepJungle = Color(0xFF0A1612)         // Ultra dark backgrounds
+val DarkForest = Color(0xFF132520)          // Dark accent
+val ForestShadow = Color(0xFF1C3830)        // Medium dark
+val MossGreen = Color(0xFF2D5045)           // Medium
+val SageGreen = Color(0xFF4A6B5C)           // Medium light
+val MintHighlight = Color(0xFF6FD68A)       // Primary brand (dark mode)
+val BrightLime = Color(0xFF8BD852)          // Highlight/pop color
+val NeonGreen = Color(0xFF5EFF7A)           // Ultra highlight
 
-val TertiaryDark = Color(0xFF80D8F0)
-val OnTertiaryDark = Color(0xFF00363E)
-val TertiaryContainerDark = Color(0xFF004F5B)
-val OnTertiaryContainerDark = Color(0xFFB0F0FF)
+// Dark Theme Text Colors
+val BrightMint = Color(0xFFE8FFF0)          // Primary text on dark
+val MutedSage = Color(0xFFA8C8B8)           // Secondary text on dark
 
-val BackgroundDark = Color(0xFF0A1F15)
-val OnBackgroundDark = MintCream
-val SurfaceDark = Color(0xFF0A1F15)
-val OnSurfaceDark = MintCream
-val SurfaceVariantDark = Color(0xFF1A3F30)
-val OnSurfaceVariantDark = SoftGreen
+// Dark Theme Glass Effects
+val DarkGlassOverlay = Color(0x4D2D5045)    // rgba(45, 80, 69, 0.3)
+val DarkGlassBorder = Color(0x336FD68A)     // rgba(111, 214, 138, 0.2)
+val DarkGlassShadow = Color(0x660A1612)     // rgba(10, 22, 18, 0.4)
+val DarkGreenTintGlass = Color(0x148BD852)  // rgba(139, 216, 82, 0.08)
 
-val OutlineDark = Color(0xFF608070)
-val OutlineVariantDark = Color(0xFF405050)
+// Dark Theme Material 3 Colors
+val PrimaryDark = MintHighlight
+val OnPrimaryDark = DeepJungle
+val PrimaryContainerDark = MossGreen
+val OnPrimaryContainerDark = BrightMint
+
+val SecondaryDark = SageGreen
+val OnSecondaryDark = BrightMint
+val SecondaryContainerDark = ForestShadow
+val OnSecondaryContainerDark = MutedSage
+
+val TertiaryDark = NeonGreen
+val OnTertiaryDark = DeepJungle
+val TertiaryContainerDark = DarkForest
+val OnTertiaryContainerDark = BrightMint
+
+val BackgroundDark = DeepJungle
+val OnBackgroundDark = BrightMint
+val SurfaceDark = DarkForest
+val OnSurfaceDark = BrightMint
+val SurfaceVariantDark = ForestShadow
+val OnSurfaceVariantDark = MutedSage
+
+val OutlineDark = SageGreen
+val OutlineVariantDark = MossGreen
 
 // ============================================
 // PODIUM & RANK COLORS - Green Themed

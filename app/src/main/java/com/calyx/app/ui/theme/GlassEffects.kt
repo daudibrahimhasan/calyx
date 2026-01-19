@@ -132,12 +132,53 @@ object CalyxGradients {
         colors = listOf(ForestGreen, DeepGreen)
     )
     
-    // Screen background gradient
+    // Screen background gradient - Light theme
     val screenBackgroundGradient = Brush.verticalGradient(
         colors = listOf(
             BackgroundBase,
             MintCream,
             BackgroundWhite
+        )
+    )
+    
+    // ============================================
+    // DARK JUNGLE THEME GRADIENTS
+    // ============================================
+    
+    // Dark theme header gradient: linear-gradient(180deg, #1C3830 0%, #2D5045 100%)
+    val darkHeaderGradient = Brush.verticalGradient(
+        colors = listOf(ForestShadow, MossGreen)
+    )
+    
+    // Dark screen background gradient: linear-gradient(180deg, #0A1612 → #132520 → #1C3830)
+    val darkScreenBackgroundGradient = Brush.verticalGradient(
+        colors = listOf(
+            DeepJungle,
+            DarkForest,
+            ForestShadow
+        )
+    )
+    
+    // Dark winner podium gradient: linear-gradient(145deg, #8BD852 0%, #6FD68A 100%)
+    val darkWinnerPodiumGradient = Brush.linearGradient(
+        colors = listOf(BrightLime, MintHighlight)
+    )
+    
+    // Dark silver podium gradient: linear-gradient(145deg, #6FD68A 0%, #4A6B5C 100%)
+    val darkSilverPodiumGradient = Brush.linearGradient(
+        colors = listOf(MintHighlight, SageGreen)
+    )
+    
+    // Dark bronze podium gradient: linear-gradient(145deg, #4A6B5C 0%, #2D5045 100%)
+    val darkBronzePodiumGradient = Brush.linearGradient(
+        colors = listOf(SageGreen, MossGreen)
+    )
+    
+    // Dark glass card gradient
+    val darkGlassGradient = Brush.linearGradient(
+        colors = listOf(
+            MossGreen.copy(alpha = 0.3f),
+            ForestShadow.copy(alpha = 0.2f)
         )
     )
     
@@ -169,6 +210,15 @@ object CalyxGradients {
             Color.White.copy(alpha = 0.25f),
             Color.White.copy(alpha = 0.20f),
             Color.White.copy(alpha = 0.15f)
+        )
+    )
+    
+    // Dark stats card gradient
+    val darkStatsCardGradient = Brush.horizontalGradient(
+        colors = listOf(
+            MossGreen.copy(alpha = 0.25f),
+            ForestShadow.copy(alpha = 0.20f),
+            DarkForest.copy(alpha = 0.15f)
         )
     )
 }

@@ -68,7 +68,7 @@ object PhoneNumberUtils {
     /**
      * Get display name with privacy considerations.
      * - If contact has a name: return the name
-     * - If unknown/unsaved: return "Unknown" with masked number
+     * - If unknown/unsaved: return just the masked phone number (no "Unknown" prefix)
      */
     fun getDisplayName(contactName: String?, phoneNumber: String): String {
         val hasRealName = !contactName.isNullOrBlank() && 
@@ -78,8 +78,19 @@ object PhoneNumberUtils {
         return if (hasRealName) {
             contactName!!
         } else {
-            "Unknown ${maskPhoneNumber(phoneNumber)}"
+            maskPhoneNumber(phoneNumber)
         }
+    }
+    
+    /**
+     * Check if a contact is unsaved (no real contact name, just a phone number).
+     * This can be used to show a distinctive icon for unsaved contacts.
+     */
+    fun isUnsavedContact(contactName: String?, phoneNumber: String): Boolean {
+        val hasRealName = !contactName.isNullOrBlank() && 
+                          contactName != phoneNumber &&
+                          !isLikelyPhoneNumber(contactName)
+        return !hasRealName
     }
     
     /**

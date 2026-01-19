@@ -4,34 +4,14 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.net.Uri
-import android.view.View
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Shader
+import android.graphics.Typeface
 import androidx.core.content.FileProvider
-import com.calyx.app.R
 import com.calyx.app.data.models.CallerStats
 import com.calyx.app.data.models.RankingCategory
-import com.calyx.app.ui.components.ProfileImage
-import com.calyx.app.ui.theme.*
 import com.calyx.app.utils.DurationFormatter
 import com.calyx.app.utils.PhoneNumberUtils
 import java.io.File
@@ -54,37 +34,370 @@ object SharePosterGenerator {
     
     /**
      * Generate and share a poster with the top 10 contacts.
+     * Uses Canvas-based rendering to avoid Compose window attachment issues.
      */
     fun shareTopContacts(
         context: Context,
         topContacts: List<CallerStats>,
         category: RankingCategory
     ) {
-        // Create a ComposeView to render the poster
-        val composeView = ComposeView(context).apply {
-            setContent {
-                PosterContent(
-                    topContacts = topContacts.take(10),
-                    category = category
-                )
-            }
+        try {
+            // Create bitmap using Canvas-based rendering
+            val bitmap = createPosterBitmap(topContacts.take(10), category)
+            
+            // Save to cache and share
+            val file = saveBitmapToCache(context, bitmap)
+            shareBitmap(context, file)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Fallback: Share as text if bitmap generation fails
+            shareAsText(context, topContacts.take(10), category)
         }
-        
-        // Measure and layout the view
-        composeView.measure(
-            View.MeasureSpec.makeMeasureSpec(POSTER_WIDTH, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(POSTER_HEIGHT, View.MeasureSpec.EXACTLY)
-        )
-        composeView.layout(0, 0, POSTER_WIDTH, POSTER_HEIGHT)
-        
-        // Create bitmap and draw
+    }
+    
+    /**
+     * Create the poster bitmap using Canvas and Paint APIs.
+     * Fresh, light design with smooth mint/green gradient background.
+     */
+    private fun createPosterBitmap(
+        topContacts: List<CallerStats>,
+        category: RankingCategory
+    ): Bitmap {
         val bitmap = Bitmap.createBitmap(POSTER_WIDTH, POSTER_HEIGHT, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        composeView.draw(canvas)
         
-        // Save to cache and share
-        val file = saveBitmapToCache(context, bitmap)
-        shareBitmap(context, file)
+        // Smooth light gradient background (mint to soft green)
+        val bgGradient = LinearGradient(
+            0f, 0f, 0f, POSTER_HEIGHT.toFloat(),
+            intArrayOf(
+                0xFFE8F5E9.toInt(), // Very light mint
+                0xFFC8E6C9.toInt(), // Soft mint
+                0xFFA5D6A7.toInt(), // Light green
+                0xFFE8F5E9.toInt()  // Back to light mint
+            ),
+            floatArrayOf(0f, 0.3f, 0.7f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        val bgPaint = Paint().apply { shader = bgGradient }
+        canvas.drawRect(0f, 0f, POSTER_WIDTH.toFloat(), POSTER_HEIGHT.toFloat(), bgPaint)
+        
+        // ========== HEADER: Logo circle + "calyz" ==========
+        val headerY = 180f
+        
+        // Logo circle background
+        val logoPaint = Paint().apply {
+            color = 0xFF2E7D32.toInt() // Forest green
+            isAntiAlias = true
+        }
+        canvas.drawCircle(POSTER_WIDTH / 2f, headerY, 70f, logoPaint)
+        
+        // Logo "C" letter inside circle
+        val logoTextPaint = Paint().apply {
+            color = 0xFFFFFFFF.toInt()
+            textSize = 72f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+        canvas.drawText("C", POSTER_WIDTH / 2f, headerY + 26f, logoTextPaint)
+        
+        // App name "calyz"
+        val appNamePaint = Paint().apply {
+            color = 0xFF1B5E20.toInt() // Dark green
+            textSize = 72f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+        canvas.drawText("calyz", POSTER_WIDTH / 2f, headerY + 130f, appNamePaint)
+        
+        // Title: "My Circle"
+        val titlePaint = Paint().apply {
+            color = 0xFF2E7D32.toInt()
+            textSize = 64f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+        canvas.drawText("My Circle", POSTER_WIDTH / 2f, headerY + 210f, titlePaint)
+        
+        // Subtitle (category)
+        val subtitlePaint = Paint().apply {
+            color = 0xFF388E3C.toInt() // Medium green
+            textSize = 40f
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+        val categoryText = when (category) {
+            RankingCategory.MOST_CALLED -> "Most Called"
+            RankingCategory.MOST_TALKED -> "Most Talked"
+        }
+        canvas.drawText(categoryText, POSTER_WIDTH / 2f, headerY + 270f, subtitlePaint)
+        
+        // Draw top 3 podium
+        if (topContacts.size >= 3) {
+            drawPodium(canvas, topContacts.take(3), category)
+        }
+        
+        // Draw remaining contacts (4-10)
+        val remaining = topContacts.drop(3).take(7)
+        if (remaining.isNotEmpty()) {
+            drawRankingList(canvas, remaining, category, startRank = 4)
+        }
+        
+        // Footer
+        val footerPaint = Paint().apply {
+            color = 0x99388E3C.toInt()
+            textSize = 32f
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+        canvas.drawText("Share your circle with calyz", POSTER_WIDTH / 2f, POSTER_HEIGHT - 80f, footerPaint)
+        
+        return bitmap
+    }
+    
+    private fun drawPodium(canvas: Canvas, top3: List<CallerStats>, category: RankingCategory) {
+        val centerY = 680f
+        
+        // Position data: [x, avatarSize, cardWidth, cardHeight]
+        val positions = listOf(
+            listOf(POSTER_WIDTH * 0.5f, 180f, 280f, 260f), // #1 center (biggest)
+            listOf(POSTER_WIDTH * 0.18f, 130f, 220f, 220f), // #2 left
+            listOf(POSTER_WIDTH * 0.82f, 120f, 200f, 200f)  // #3 right
+        )
+        
+        val orderedContacts = listOf(top3[0], top3[1], top3[2])
+        val ranks = listOf(1, 2, 3)
+        
+        orderedContacts.forEachIndexed { index, caller ->
+            val pos = positions[index]
+            val rank = ranks[index]
+            
+            drawPodiumItem(
+                canvas, caller, rank,
+                centerX = pos[0],
+                centerY = centerY + (if (rank == 1) 0f else 40f),
+                avatarSize = pos[1],
+                cardWidth = pos[2],
+                cardHeight = pos[3],
+                category = category
+            )
+        }
+    }
+    
+    private fun drawPodiumItem(
+        canvas: Canvas,
+        caller: CallerStats,
+        rank: Int,
+        centerX: Float,
+        centerY: Float,
+        avatarSize: Float,
+        cardWidth: Float,
+        cardHeight: Float,
+        category: RankingCategory
+    ) {
+        // Card background (soft pastel, filled)
+        val cardColor = when (rank) {
+            1 -> 0xFFFFFFFF.toInt() // White for #1
+            2 -> 0xFFF1F8E9.toInt() // Very light green
+            else -> 0xFFE8F5E9.toInt() // Light mint
+        }
+        val cardPaint = Paint().apply {
+            color = cardColor
+            isAntiAlias = true
+            setShadowLayer(20f, 0f, 8f, 0x30000000)
+        }
+        
+        val cardTop = centerY - 20f
+        val cardRect = RectF(
+            centerX - cardWidth / 2,
+            cardTop,
+            centerX + cardWidth / 2,
+            cardTop + cardHeight
+        )
+        canvas.drawRoundRect(cardRect, 32f, 32f, cardPaint)
+        
+        // Avatar circle 
+        val avatarY = cardTop + 60f
+        val avatarColor = when (rank) {
+            1 -> 0xFF66BB6A.toInt() // Vibrant green
+            2 -> 0xFF81C784.toInt() // Light green
+            else -> 0xFFA5D6A7.toInt() // Softer green
+        }
+        val avatarPaint = Paint().apply {
+            color = avatarColor
+            isAntiAlias = true
+        }
+        canvas.drawCircle(centerX, avatarY, avatarSize / 2, avatarPaint)
+        
+        // Initials
+        val initialsPaint = Paint().apply {
+            color = 0xFFFFFFFF.toInt()
+            textSize = avatarSize * 0.35f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+        val initials = getInitials(caller.displayName)
+        canvas.drawText(initials, centerX, avatarY + (avatarSize * 0.12f), initialsPaint)
+        
+        // Rank badge (positioned at bottom-right of avatar)
+        val badgeSize = if (rank == 1) 50f else 40f
+        val badgeX = centerX + (avatarSize / 2) - badgeSize / 2
+        val badgeY = avatarY + (avatarSize / 2) - badgeSize / 2
+        val badgeColor = when (rank) {
+            1 -> 0xFFFFD700.toInt() // Gold
+            2 -> 0xFFC0C0C0.toInt() // Silver
+            else -> 0xFFCD7F32.toInt() // Bronze
+        }
+        val badgePaint = Paint().apply {
+            color = badgeColor
+            isAntiAlias = true
+        }
+        canvas.drawCircle(badgeX, badgeY, badgeSize / 2, badgePaint)
+        
+        val rankTextPaint = Paint().apply {
+            color = 0xFFFFFFFF.toInt()
+            textSize = if (rank == 1) 28f else 22f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+        canvas.drawText("$rank", badgeX, badgeY + 9f, rankTextPaint)
+        
+        // Name
+        val nameY = avatarY + (avatarSize / 2) + 50f
+        val namePaint = Paint().apply {
+            color = 0xFF1B5E20.toInt() // Dark green
+            textSize = if (rank == 1) 36f else 28f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+        val displayName = PhoneNumberUtils.getDisplayName(caller.displayName, caller.phoneNumber)
+        val truncatedName = if (displayName.length > 10) displayName.take(10) + "..." else displayName
+        canvas.drawText(truncatedName, centerX, nameY, namePaint)
+        
+        // Score pill
+        val scoreY = nameY + 40f
+        val scorePillPaint = Paint().apply {
+            color = 0xFF4CAF50.toInt() // Green
+            isAntiAlias = true
+        }
+        val score = when (category) {
+            RankingCategory.MOST_CALLED -> "${caller.totalCalls} calls"
+            RankingCategory.MOST_TALKED -> DurationFormatter.formatShort(caller.totalDuration)
+        }
+        val pillWidth = if (rank == 1) 140f else 110f
+        val pillRect = RectF(
+            centerX - pillWidth / 2,
+            scoreY - 18f,
+            centerX + pillWidth / 2,
+            scoreY + 18f
+        )
+        canvas.drawRoundRect(pillRect, 18f, 18f, scorePillPaint)
+        
+        val scorePaint = Paint().apply {
+            color = 0xFFFFFFFF.toInt()
+            textSize = if (rank == 1) 24f else 20f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+        canvas.drawText(score, centerX, scoreY + 8f, scorePaint)
+    }
+    
+    private fun drawRankingList(
+        canvas: Canvas,
+        contacts: List<CallerStats>,
+        category: RankingCategory,
+        startRank: Int
+    ) {
+        val startY = 1050f
+        val itemHeight = 110f
+        val padding = 48f
+        
+        contacts.forEachIndexed { index, caller ->
+            val rank = startRank + index
+            val y = startY + (index * itemHeight)
+            
+            // Card background (white, filled)
+            val cardPaint = Paint().apply {
+                color = 0xFFFFFFFF.toInt()
+                isAntiAlias = true
+                setShadowLayer(12f, 0f, 4f, 0x20000000)
+            }
+            val rect = RectF(padding, y, POSTER_WIDTH - padding, y + 95f)
+            canvas.drawRoundRect(rect, 24f, 24f, cardPaint)
+            
+            // Rank badge
+            val rankBadgePaint = Paint().apply {
+                color = 0xFF66BB6A.toInt()
+                isAntiAlias = true
+            }
+            canvas.drawCircle(padding + 55f, y + 48f, 28f, rankBadgePaint)
+            
+            val rankPaint = Paint().apply {
+                color = 0xFFFFFFFF.toInt()
+                textSize = 28f
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textAlign = Paint.Align.CENTER
+                isAntiAlias = true
+            }
+            canvas.drawText("$rank", padding + 55f, y + 58f, rankPaint)
+            
+            // Avatar circle
+            val avatarPaint = Paint().apply {
+                color = 0xFFA5D6A7.toInt()
+                isAntiAlias = true
+            }
+            canvas.drawCircle(padding + 150f, y + 48f, 35f, avatarPaint)
+            
+            // Initials
+            val initialsPaint = Paint().apply {
+                color = 0xFFFFFFFF.toInt()
+                textSize = 28f
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textAlign = Paint.Align.CENTER
+                isAntiAlias = true
+            }
+            val initials = getInitials(caller.displayName)
+            canvas.drawText(initials, padding + 150f, y + 58f, initialsPaint)
+            
+            // Name
+            val namePaint = Paint().apply {
+                color = 0xFF1B5E20.toInt()
+                textSize = 32f
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                isAntiAlias = true
+            }
+            val displayName = PhoneNumberUtils.getDisplayName(caller.displayName, caller.phoneNumber)
+            val truncatedName = if (displayName.length > 14) displayName.take(14) + "..." else displayName
+            canvas.drawText(truncatedName, padding + 210f, y + 42f, namePaint)
+            
+            // Score
+            val scorePaint = Paint().apply {
+                color = 0xFF4CAF50.toInt()
+                textSize = 26f
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                isAntiAlias = true
+            }
+            val score = when (category) {
+                RankingCategory.MOST_CALLED -> "${caller.totalCalls} calls"
+                RankingCategory.MOST_TALKED -> DurationFormatter.formatShort(caller.totalDuration)
+            }
+            canvas.drawText(score, padding + 210f, y + 75f, scorePaint)
+        }
+    }
+    
+    private fun getInitials(name: String): String {
+        val parts = name.trim().split(" ")
+        return when {
+            parts.size >= 2 -> "${parts.first().firstOrNull()?.uppercaseChar() ?: ""}${parts.last().firstOrNull()?.uppercaseChar() ?: ""}"
+            parts.isNotEmpty() -> parts.first().take(2).uppercase()
+            else -> "?"
+        }
     }
     
     private fun saveBitmapToCache(context: Context, bitmap: Bitmap): File {
@@ -110,325 +423,52 @@ object SharePosterGenerator {
             type = "image/png"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         
         context.startActivity(Intent.createChooser(shareIntent, "Share your circle"))
     }
-}
-
-/**
- * The poster content composable (1080x1920).
- */
-@Composable
-private fun PosterContent(
-    topContacts: List<CallerStats>,
-    category: RankingCategory
-) {
-    Box(
-        modifier = Modifier
-            .width(1080.dp)
-            .height(1920.dp)
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF0A1F15), // Dark forest
-                        Color(0xFF0F3D2E), // Deep green-black
-                        Color(0xFF1C6F54).copy(alpha = 0.8f),
-                        Color(0xFF0A1F15)
-                    )
-                )
-            )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(48.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Header
-            Spacer(modifier = Modifier.height(40.dp))
-            
-            // Logo
-            Image(
-                painter = painterResource(id = R.drawable.calyx_logo),
-                contentDescription = "Calyx",
-                modifier = Modifier.size(80.dp)
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            Text(
-                text = "My Circle",
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            
-            Text(
-                text = when (category) {
-                    RankingCategory.MOST_CALLED -> "Most Called"
-                    RankingCategory.MOST_TALKED -> "Most Talked"
-                },
-                fontSize = 20.sp,
-                color = LimeAccent
-            )
-            
-            Spacer(modifier = Modifier.height(60.dp))
-            
-            // Top 3 Podium
-            if (topContacts.size >= 3) {
-                PosterPodium(
-                    first = topContacts[0],
-                    second = topContacts[1],
-                    third = topContacts[2],
-                    category = category
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(48.dp))
-            
-            // Ranks 4-10 in grid
-            val remaining = topContacts.drop(3).take(7)
-            if (remaining.isNotEmpty()) {
-                PosterGrid(
-                    contacts = remaining,
-                    category = category,
-                    startRank = 4
-                )
-            }
-            
-            Spacer(modifier = Modifier.weight(1f))
-            
-            // Footer
-            Text(
-                text = "Generated by Calyx",
-                fontSize = 16.sp,
-                color = Color.White.copy(alpha = 0.5f)
-            )
-            
-            Spacer(modifier = Modifier.height(32.dp))
-        }
-    }
-}
-
-@Composable
-private fun PosterPodium(
-    first: CallerStats,
-    second: CallerStats,
-    third: CallerStats,
-    category: RankingCategory
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.Bottom
-    ) {
-        // #2
-        PosterPodiumItem(
-            caller = second,
-            rank = 2,
-            category = category,
-            avatarSize = 100.dp,
-            height = 160.dp
-        )
-        
-        // #1
-        PosterPodiumItem(
-            caller = first,
-            rank = 1,
-            category = category,
-            avatarSize = 140.dp,
-            height = 200.dp
-        )
-        
-        // #3
-        PosterPodiumItem(
-            caller = third,
-            rank = 3,
-            category = category,
-            avatarSize = 90.dp,
-            height = 140.dp
-        )
-    }
-}
-
-@Composable
-private fun PosterPodiumItem(
-    caller: CallerStats,
-    rank: Int,
-    category: RankingCategory,
-    avatarSize: androidx.compose.ui.unit.Dp,
-    height: androidx.compose.ui.unit.Dp
-) {
-    val accentColor = when (rank) {
-        1 -> LimeAccent
-        2 -> FreshGreen
-        else -> DeepGreen
-    }
     
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
+    /**
+     * Fallback: Share as text if bitmap generation fails.
+     */
+    private fun shareAsText(
+        context: Context,
+        topContacts: List<CallerStats>,
+        category: RankingCategory
     ) {
-        // Avatar with glow for #1
-        Box(
-            modifier = Modifier
-                .size(avatarSize)
-                .then(
-                    if (rank == 1) {
-                        Modifier.border(
-                            width = 4.dp,
-                            brush = Brush.radialGradient(
-                                colors = listOf(LimeAccent, LimeAccent.copy(alpha = 0.3f))
-                            ),
-                            shape = CircleShape
-                        )
-                    } else {
-                        Modifier.border(3.dp, Color.White.copy(alpha = 0.5f), CircleShape)
-                    }
-                )
-                .clip(CircleShape)
-        ) {
-            ProfileImage(
-                photoUri = caller.profilePhotoUri,
-                displayName = caller.displayName,
-                size = avatarSize
-            )
+        val categoryName = when (category) {
+            RankingCategory.MOST_CALLED -> "Most Called"
+            RankingCategory.MOST_TALKED -> "Most Talked"
         }
         
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        // Medal
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(accentColor),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "$rank",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-        }
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        // Name
-        Text(
-            text = PhoneNumberUtils.getDisplayName(caller.displayName, caller.phoneNumber),
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color.White,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.width(140.dp)
-        )
-        
-        // Score
-        Text(
-            text = when (category) {
-                RankingCategory.MOST_CALLED -> "${caller.totalCalls} calls"
-                RankingCategory.MOST_TALKED -> DurationFormatter.formatShort(caller.totalDuration)
-            },
-            fontSize = 14.sp,
-            color = accentColor
-        )
-    }
-}
-
-@Composable
-private fun PosterGrid(
-    contacts: List<CallerStats>,
-    category: RankingCategory,
-    startRank: Int
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        contacts.chunked(2).forEachIndexed { rowIndex, row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally)
-            ) {
-                row.forEachIndexed { colIndex, caller ->
-                    val rank = startRank + (rowIndex * 2) + colIndex
-                    PosterGridItem(
-                        caller = caller,
-                        rank = rank,
-                        category = category,
-                        modifier = Modifier.weight(1f)
-                    )
+        val text = buildString {
+            appendLine("🏆 My Circle - $categoryName")
+            appendLine()
+            topContacts.forEachIndexed { index, caller ->
+                val rank = index + 1
+                val medal = when (rank) {
+                    1 -> "🥇"
+                    2 -> "🥈"
+                    3 -> "🥉"
+                    else -> "$rank."
                 }
-                // Fill empty space for odd item count
-                if (row.size == 1) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PosterGridItem(
-    caller: CallerStats,
-    rank: Int,
-    category: RankingCategory,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color.White.copy(alpha = 0.1f))
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Rank
-        Text(
-            text = "$rank",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = VibrantGreen,
-            modifier = Modifier.width(32.dp)
-        )
-        
-        // Avatar
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-        ) {
-            ProfileImage(
-                photoUri = caller.profilePhotoUri,
-                displayName = caller.displayName,
-                size = 48.dp
-            )
-        }
-        
-        Spacer(modifier = Modifier.width(12.dp))
-        
-        // Info
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = PhoneNumberUtils.getDisplayName(caller.displayName, caller.phoneNumber),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = when (category) {
+                val score = when (category) {
                     RankingCategory.MOST_CALLED -> "${caller.totalCalls} calls"
                     RankingCategory.MOST_TALKED -> DurationFormatter.formatShort(caller.totalDuration)
-                },
-                fontSize = 12.sp,
-                color = LimeAccent
-            )
+                }
+                appendLine("$medal ${caller.displayName} - $score")
+            }
+            appendLine()
+            appendLine("Generated by Calyx")
         }
+        
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        
+        context.startActivity(Intent.createChooser(shareIntent, "Share your circle"))
     }
 }

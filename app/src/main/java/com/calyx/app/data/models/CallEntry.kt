@@ -9,7 +9,8 @@ data class CallEntry(
     val callType: Int,
     val date: Long,
     val duration: Long,
-    val contactName: String? = null
+    val contactName: String? = null,
+    val photoUri: String? = null
 ) {
     companion object {
         const val TYPE_INCOMING = 1

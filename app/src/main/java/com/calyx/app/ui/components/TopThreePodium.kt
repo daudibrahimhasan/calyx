@@ -7,24 +7,26 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.calyx.app.data.models.CallerStats
 import com.calyx.app.data.models.RankingCategory
 import com.calyx.app.ui.theme.*
@@ -33,12 +35,14 @@ import com.calyx.app.utils.PhoneNumberUtils
 import kotlinx.coroutines.delay
 
 /**
- * Top 3 podium with "Growth" animation - columns rise from bottom like trees.
+ * Top 3 podium with glassmorphism effect.
  * 
  * Layout:
  *   #2 (Left)    #1 (Center)    #3 (Right)
- *   Medium       Tallest        Shortest
- *   Silver       Gold+Glow      Bronze
+ *   70% height   100% height    60% height
+ *   20% opacity  30% opacity    15% opacity
+ * 
+ * Profile pictures positioned 50% above card, 50% overlapping.
  */
 @Composable
 fun TopThreePodium(
@@ -46,88 +50,109 @@ fun TopThreePodium(
     secondPlace: CallerStats?,
     thirdPlace: CallerStats?,
     category: RankingCategory,
+    isDarkTheme: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    // Staggered "growth" animation states
-    var growSecond by remember { mutableStateOf(false) }
-    var growFirst by remember { mutableStateOf(false) }
-    var growThird by remember { mutableStateOf(false) }
+    // Staggered entrance animation states
+    var showSecond by remember { mutableStateOf(false) }
+    var showFirst by remember { mutableStateOf(false) }
+    var showThird by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         delay(100)
-        growSecond = true
+        showSecond = true
         delay(100)
-        growFirst = true
+        showFirst = true
         delay(150)
-        growThird = true
+        showThird = true
     }
+
+    // Fixed podium dimensions
+    val winnerCardHeight = 140.dp
+    val winnerAvatarSize = 72.dp
+    val secondCardHeight = winnerCardHeight * 0.70f  // 70% of winner
+    val secondAvatarSize = 60.dp
+    val thirdCardHeight = winnerCardHeight * 0.60f   // 60% of winner
+    val thirdAvatarSize = 54.dp
+    
+    // Total height = card height + half of avatar (avatar overlaps 50%)
+    val totalHeight = winnerCardHeight + (winnerAvatarSize / 2) + 16.dp
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .height(totalHeight)
+            .padding(horizontal = 12.dp)
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp),
+                .fillMaxSize(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.Bottom
         ) {
-            // #2 - Left (Silver)
+            // #2 - Left position (Silver)
             Box(
-                modifier = Modifier.weight(0.28f),
+                modifier = Modifier
+                    .weight(0.28f)
+                    .fillMaxHeight(),
                 contentAlignment = Alignment.BottomCenter
             ) {
                 secondPlace?.let {
-                    GrowthPodiumCard(
+                    GlassPodiumCard(
                         caller = it,
                         rank = 2,
                         category = category,
-                        targetHeight = 130.dp,
-                        avatarSize = 56.dp,
-                        isVisible = growSecond,
-                        accentColor = FreshGreen,
-                        medalColor = Silver
+                        isDarkTheme = isDarkTheme,
+                        cardHeight = secondCardHeight,
+                        avatarSize = secondAvatarSize,
+                        isVisible = showSecond,
+                        glassOpacity = 0.20f,
+                        glowColor = FreshGreen
                     )
                 }
             }
 
-            // #1 - Center (Gold with Glow)
+            // #1 - Center position (Gold/Winner)
             Box(
-                modifier = Modifier.weight(0.44f),
+                modifier = Modifier
+                    .weight(0.44f)
+                    .fillMaxHeight(),
                 contentAlignment = Alignment.BottomCenter
             ) {
                 firstPlace?.let {
-                    GrowthPodiumCard(
+                    GlassPodiumCard(
                         caller = it,
                         rank = 1,
                         category = category,
-                        targetHeight = 160.dp,
-                        avatarSize = 72.dp,
-                        isVisible = growFirst,
-                        accentColor = LimeAccent,
-                        medalColor = Gold,
+                        isDarkTheme = isDarkTheme,
+                        cardHeight = winnerCardHeight,
+                        avatarSize = winnerAvatarSize,
+                        isVisible = showFirst,
+                        glassOpacity = 0.30f,
+                        glowColor = LimeAccent,
                         showGlowRing = true
                     )
                 }
             }
 
-            // #3 - Right (Bronze)
+            // #3 - Right position (Bronze)
             Box(
-                modifier = Modifier.weight(0.28f),
+                modifier = Modifier
+                    .weight(0.28f)
+                    .fillMaxHeight(),
                 contentAlignment = Alignment.BottomCenter
             ) {
                 thirdPlace?.let {
-                    GrowthPodiumCard(
+                    GlassPodiumCard(
                         caller = it,
                         rank = 3,
                         category = category,
-                        targetHeight = 110.dp,
-                        avatarSize = 52.dp,
-                        isVisible = growThird,
-                        accentColor = DeepGreen,
-                        medalColor = Bronze
+                        isDarkTheme = isDarkTheme,
+                        cardHeight = thirdCardHeight,
+                        avatarSize = thirdAvatarSize,
+                        isVisible = showThird,
+                        glassOpacity = 0.15f,
+                        glowColor = DeepGreen
                     )
                 }
             }
@@ -136,38 +161,48 @@ fun TopThreePodium(
 }
 
 /**
- * Individual podium card with growth animation.
+ * Individual glassmorphism podium card.
+ * Profile picture is positioned 50% above the card, 50% overlapping onto it.
  */
 @Composable
-private fun GrowthPodiumCard(
+private fun GlassPodiumCard(
     caller: CallerStats,
     rank: Int,
     category: RankingCategory,
-    targetHeight: Dp,
+    isDarkTheme: Boolean,
+    cardHeight: Dp,
     avatarSize: Dp,
     isVisible: Boolean,
-    accentColor: Color,
-    medalColor: Color,
-    showGlowRing: Boolean = false,
-    modifier: Modifier = Modifier
+    glassOpacity: Float,
+    glowColor: Color,
+    showGlowRing: Boolean = false
 ) {
-    // Growth animation
+    // Animation states
     val animatedHeight by animateDpAsState(
-        targetValue = if (isVisible) targetHeight else 0.dp,
+        targetValue = if (isVisible) cardHeight else 0.dp,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
         ),
-        label = "height"
+        label = "cardHeight"
     )
     
     val animatedAlpha by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
-        animationSpec = tween(300),
+        animationSpec = tween(400),
         label = "alpha"
     )
 
-    // Glow animation for #1
+    val animatedScale by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0.8f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "scale"
+    )
+
+    // Pulsing glow for winner
     val infiniteTransition = rememberInfiniteTransition(label = "glow")
     val glowAlpha by infiniteTransition.animateFloat(
         initialValue = 0.4f,
@@ -179,28 +214,59 @@ private fun GrowthPodiumCard(
         label = "glowAlpha"
     )
 
-    Column(
-        modifier = modifier
+    // Profile overlaps 50% above card
+    val avatarOffset = avatarSize / 2
+
+    // Container for proper layering - total height is card + half avatar
+    Box(
+        modifier = Modifier
             .fillMaxWidth()
-            .graphicsLayer { alpha = animatedAlpha },
-        horizontalAlignment = Alignment.CenterHorizontally
+            .height(cardHeight + avatarOffset)
+            .graphicsLayer {
+                alpha = animatedAlpha
+                scaleX = animatedScale
+                scaleY = animatedScale
+            },
+        contentAlignment = Alignment.TopCenter
     ) {
-        // Avatar with optional glow ring
+        // LAYER 1: Glass Card (lower z-index, at bottom)
         Box(
-            modifier = Modifier.offset(y = avatarSize / 3),
-            contentAlignment = Alignment.Center
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(animatedHeight)
+                .align(Alignment.BottomCenter)
+                .zIndex(1f)
         ) {
-            // Glow ring for #1
+            // Glass card background
+            GlassCardContent(
+                caller = caller,
+                rank = rank,
+                category = category,
+                isDarkTheme = isDarkTheme,
+                glassOpacity = glassOpacity,
+                glowColor = glowColor,
+                topPadding = avatarOffset + 8.dp // Space for avatar overlap + padding
+            )
+        }
+
+        // LAYER 2: Profile Avatar (higher z-index, floating above)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .zIndex(2f)
+        ) {
+            // Glow ring behind avatar for winner
             if (showGlowRing) {
                 Box(
                     modifier = Modifier
-                        .size(avatarSize + 16.dp)
+                        .size(avatarSize + 20.dp)
+                        .align(Alignment.Center)
                         .drawBehind {
                             drawCircle(
                                 brush = Brush.radialGradient(
                                     colors = listOf(
-                                        LimeAccent.copy(alpha = glowAlpha),
-                                        LimeAccent.copy(alpha = glowAlpha * 0.5f),
+                                        LimeAccent.copy(alpha = glowAlpha * 0.6f),
+                                        LimeAccent.copy(alpha = glowAlpha * 0.3f),
                                         Color.Transparent
                                     )
                                 ),
@@ -209,107 +275,60 @@ private fun GrowthPodiumCard(
                         }
                 )
             }
-            
+
+            // Avatar container - includes both the profile image and the rank badge
             Box(
-                modifier = Modifier
-                    .size(avatarSize)
-                    .clip(CircleShape)
-                    .border(
-                        width = if (rank == 1) 3.dp else 2.dp,
-                        color = Color.White,
-                        shape = CircleShape
-                    )
-                    .shadow(4.dp, CircleShape)
-            ) {
-                ProfileImage(
-                    photoUri = caller.profilePhotoUri,
-                    displayName = caller.displayName,
-                    size = avatarSize
-                )
-            }
-            
-            // Medal badge
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .offset(x = 4.dp, y = 4.dp)
-                    .size(if (rank == 1) 24.dp else 20.dp)
-                    .clip(CircleShape)
-                    .background(medalColor)
-                    .border(1.5.dp, Color.White, CircleShape),
+                modifier = Modifier.size(avatarSize),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "$rank",
-                    fontSize = if (rank == 1) 11.sp else 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (rank == 2) PrimaryText else Color.White
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // Podium block
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(animatedHeight)
-                .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            accentColor,
-                            accentColor.copy(alpha = 0.7f)
-                        )
-                    )
-                )
-                .border(
-                    width = 1.dp,
-                    color = Color.White.copy(alpha = 0.3f),
-                    shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
-                ),
-            contentAlignment = Alignment.TopCenter
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 6.dp, vertical = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Spacer(modifier = Modifier.height(avatarSize / 3))
-                
-                // Name (masked if unknown)
-                Text(
-                    text = PhoneNumberUtils.getDisplayName(caller.displayName, caller.phoneNumber),
-                    fontSize = if (rank == 1) 13.sp else 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (rank == 2) PrimaryText else Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                // Score pill
+                // Avatar with shadow for floating effect
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            if (rank == 2) DeepGreen.copy(alpha = 0.2f) 
-                            else Color.White.copy(alpha = 0.2f)
+                        .fillMaxSize()
+                        .shadow(
+                            elevation = 12.dp,
+                            shape = CircleShape,
+                            ambientColor = Color.Black.copy(alpha = 0.25f),
+                            spotColor = Color.Black.copy(alpha = 0.25f)
                         )
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                        .clip(CircleShape)
+                        .border(
+                            width = if (rank == 1) 3.dp else 2.dp,
+                            color = Color.White.copy(alpha = 0.9f),
+                            shape = CircleShape
+                        )
+                ) {
+                    ProfileImage(
+                        photoUri = caller.profilePhotoUri,
+                        displayName = caller.displayName,
+                        size = avatarSize,
+                        isUnsavedContact = PhoneNumberUtils.isUnsavedContact(
+                            caller.displayName,
+                            caller.phoneNumber
+                        )
+                    )
+                }
+
+                // Rank badge - Positioned at bottom-right corner of avatar
+                val badgeSize = if (rank == 1) 22.dp else 20.dp
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(badgeSize)
+                        .shadow(4.dp, CircleShape)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.background)
+                        .padding(2.dp)
+                        .clip(CircleShape)
+                        .background(getRankBadgeColor(rank)),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = when (category) {
-                            RankingCategory.MOST_CALLED -> "${caller.totalCalls}"
-                            RankingCategory.MOST_TALKED -> DurationFormatter.formatShort(caller.totalDuration)
-                        },
-                        fontSize = if (rank == 1) 14.sp else 12.sp,
+                        text = "$rank",
+                        fontSize = if (rank == 1) 11.sp else 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (rank == 2) DeepGreen else Color.White
+                        color = Color.White,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -317,8 +336,131 @@ private fun GrowthPodiumCard(
     }
 }
 
-private fun androidx.compose.ui.Modifier.graphicsLayer(block: androidx.compose.ui.graphics.GraphicsLayerScope.() -> Unit): Modifier {
-    return this.then(
-        Modifier.graphicsLayer(block)
+/**
+ * Glassmorphism card content with frosted glass effect.
+ */
+@Composable
+private fun GlassCardContent(
+    caller: CallerStats,
+    rank: Int,
+    category: RankingCategory,
+    isDarkTheme: Boolean,
+    glassOpacity: Float,
+    glowColor: Color,
+    topPadding: Dp
+) {
+    val cardShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
+    
+    // Glassmorphism gradient brush
+    val glassGradient = Brush.linearGradient(
+        colors = listOf(
+            glowColor.copy(alpha = glassOpacity + 0.1f),
+            glowColor.copy(alpha = glassOpacity),
+            glowColor.copy(alpha = glassOpacity - 0.05f)
+        ),
+        start = Offset(0f, 0f),
+        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
     )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .shadow(
+                elevation = 8.dp,
+                shape = cardShape,
+                ambientColor = glowColor.copy(alpha = 0.15f),
+                spotColor = glowColor.copy(alpha = 0.2f)
+            )
+            .clip(cardShape)
+            // Glass background
+            .background(glassGradient)
+            // Semi-transparent white overlay for frosted effect
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.25f),
+                        Color.White.copy(alpha = 0.10f)
+                    )
+                )
+            )
+            // Subtle border for glass edge
+            .border(
+                width = 1.5.dp,
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.4f),
+                        Color.White.copy(alpha = 0.15f)
+                    )
+                ),
+                shape = cardShape
+            )
+    ) {
+        // Card content
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = topPadding, start = 8.dp, end = 8.dp, bottom = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top
+        ) {
+            // Name - Theme-aware high contrast
+            Text(
+                text = PhoneNumberUtils.getDisplayName(caller.displayName, caller.phoneNumber),
+                fontSize = when (rank) {
+                    1 -> 14.sp
+                    2 -> 12.sp
+                    else -> 11.sp
+                },
+                fontWeight = FontWeight.SemiBold,
+                color = if (isDarkTheme) BrightMint else DarkForest,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Score with glassmorphism pill - Theme-aware colors
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                         if (isDarkTheme) LimeAccent.copy(alpha = 0.3f) 
+                         else Color.White.copy(alpha = 0.35f)
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = if (isDarkTheme) LimeAccent.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = when (category) {
+                        RankingCategory.MOST_CALLED -> "${caller.totalCalls} calls"
+                        RankingCategory.MOST_TALKED -> DurationFormatter.formatShort(caller.totalDuration)
+                    },
+                    fontSize = when (rank) {
+                        1 -> 13.sp
+                        2 -> 11.sp
+                        else -> 10.sp
+                    },
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDarkTheme) DarkForest else ForestGreen
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Get rank badge background color.
+ */
+private fun getRankBadgeColor(rank: Int): Color {
+    return when (rank) {
+        1 -> Color(0xFFFFD700) // Gold
+        2 -> Color(0xFFC0C0C0) // Silver
+        3 -> Color(0xFFCD7F32) // Bronze
+        else -> VibrantGreen
+    }
 }

@@ -1,10 +1,13 @@
 package com.calyx.app.ui.screens.leaderboard
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -20,14 +23,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import com.calyx.app.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.calyx.app.data.models.RankingCategory
 import com.calyx.app.ui.components.*
 import com.calyx.app.ui.theme.*
-import kotlinx.coroutines.delay
 
 /**
  * Main leaderboard screen with minimized UI for maximum content visibility.
@@ -41,7 +45,8 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LeaderboardScreen(
-    viewModel: LeaderboardViewModel = viewModel()
+    viewModel: LeaderboardViewModel = viewModel(),
+    isDarkTheme: Boolean = false
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
@@ -66,10 +71,14 @@ fun LeaderboardScreen(
         isRefreshing = uiState.isLoading
     }
 
+    // Determine gradients based on theme
+    val screenGradient = if (isDarkTheme) CalyxGradients.darkScreenBackgroundGradient else CalyxGradients.screenBackgroundGradient
+    val headerGradient = if (isDarkTheme) CalyxGradients.darkHeaderGradient else CalyxGradients.headerGradient
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(CalyxGradients.screenBackgroundGradient)
+            .background(screenGradient)
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -81,7 +90,7 @@ fun LeaderboardScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(CalyxGradients.headerGradient)
+                    .background(headerGradient)
                     .statusBarsPadding()
                     .height(56.dp)
             ) {
@@ -91,11 +100,12 @@ fun LeaderboardScreen(
                         .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Title - Left aligned, 20sp Bold
+                    // Title - "calyz" in Bold Poppins
                     Text(
-                        text = "Leaderboard",
-                        fontSize = 20.sp,
+                        text = "calyz",
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
+                        fontFamily = com.calyx.app.ui.theme.LufgaFontFamily, 
                         color = Color.White,
                         modifier = Modifier.weight(1f)
                     )
@@ -140,15 +150,6 @@ fun LeaderboardScreen(
                         )
                     }
                     
-                    // Settings button
-                    IconButton(onClick = { /* TODO: Open settings */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            modifier = Modifier.size(22.dp),
-                            tint = Color.White
-                        )
-                    }
                 }
             }
 
@@ -178,7 +179,7 @@ fun LeaderboardScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                    .background(BackgroundBase)
+                    .background(MaterialTheme.colorScheme.background) // Theme-aware background
             ) {
                 when {
                     uiState.isLoading -> {
@@ -216,21 +217,21 @@ private fun LeaderboardContent(
     selectedCategory: RankingCategory
 ) {
     val (first, second, third) = viewModel.getTopThree()
-    val restOfList = viewModel.getRestOfList()
-
-    // Staggered entrance animation
-    var listVisible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(200)
-        listVisible = true
-    }
+    // Limit display to 97 contacts below podium (100 total including top 3)
+    val restOfList = viewModel.getRestOfList().take(97)
+    
+    // Use scroll state for smooth list performance
+    val listState = rememberLazyListState()
 
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 24.dp)
+        contentPadding = PaddingValues(bottom = 80.dp), // Extra space for bottom nav
+        // Optimized fling behavior for smoother scrolling
+        flingBehavior = ScrollableDefaults.flingBehavior()
     ) {
-        // Top 3 Podium with "Growth" animation
-        item {
+        // Top 3 Podium
+        item(key = "podium") {
             TopThreePodium(
                 firstPlace = first,
                 secondPlace = second,
@@ -240,61 +241,41 @@ private fun LeaderboardContent(
             )
         }
 
-        // Rest of the list as a "Sheet" overlay
+        // Rankings section
         if (restOfList.isNotEmpty()) {
-            // Sheet header
-            item {
-                Box(
+            // Section header
+            item(key = "rankings_header") {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "Rankings",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
-                        color = SecondaryText
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "${restOfList.size + 3} contacts",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 }
             }
 
-            // List items with staggered animation
-            items(
+            // Ultra-optimized list items - NO animations for maximum scroll performance
+            itemsIndexed(
                 items = restOfList,
-                key = { it.phoneNumber }
-            ) { caller ->
-                val index = restOfList.indexOf(caller)
-                var itemVisible by remember { mutableStateOf(false) }
-                
-                LaunchedEffect(listVisible) {
-                    if (listVisible) {
-                        delay(index * 40L)
-                        itemVisible = true
-                    }
-                }
-                
-                val itemAlpha by animateFloatAsState(
-                    targetValue = if (itemVisible) 1f else 0f,
-                    animationSpec = tween(250, easing = FastOutSlowInEasing),
-                    label = "itemAlpha"
-                )
-                
-                val itemOffset by animateFloatAsState(
-                    targetValue = if (itemVisible) 0f else 16f,
-                    animationSpec = tween(250, easing = FastOutSlowInEasing),
-                    label = "itemOffset"
-                )
-                
+                key = { _, caller -> caller.phoneNumber }
+            ) { _, caller ->
                 RankedListItem(
                     callerStats = caller,
                     category = selectedCategory,
                     onClick = { /* Future: show caller details */ },
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 3.dp)
-                        .graphicsLayer {
-                            alpha = itemAlpha
-                            translationY = itemOffset
-                        }
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 3.dp)
                 )
             }
         }
