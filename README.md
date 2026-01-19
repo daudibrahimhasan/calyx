@@ -1,5 +1,4 @@
-# Calyz - Smart Call Insights & Leaderboards
-
+# Calyz - Smart Call Insights
 **calyz** is a premium Android application designed to transform your raw call history into meaningful, actionable insights. Featuring a state-of-the-art Jetpack Compose UI, it identifies your most frequent contacts, analyzes communication trends, and provides a beautiful interface for visualizing your calling habits.
 
 ---
@@ -54,15 +53,14 @@ com.calyx.app/
 - **JDK 17 or 21**
 - **Android SDK** API 34+
 
-### Installation
+### How to Use
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/daudibrahimhasan/calyx.git
-   ```
-2. Open the project in Android Studio.
-3. Sync Gradle files (requires internet connection).
-4. Run on a physical device (recommended for real call log data) or emulator.
+1. **Download** the source code as a ZIP file from the repository.
+2. **Extract** the files to a folder on your computer.
+3. Open **Android Studio** and select **"Open"**.
+4. Navigate to the extracted folder and select the `calyz` directory.
+5. Sync Gradle files (requires internet connection).
+6. Run on a physical device (recommended for real call log data) or emulator.
 
 ---
 
