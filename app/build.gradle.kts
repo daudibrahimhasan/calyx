@@ -1,18 +1,17 @@
 plugins {
-    id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.android.application")
     id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.compose")
     // google-services plugin will be applied conditionally at the end
 }
 
 // Apply google-services plugin only if google-services.json exists
-// This allows the app to build without Firebase for offline-only mode
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
 }
 
-android {
+configure<com.android.build.api.dsl.ApplicationExtension> {
     namespace = "com.calyx.app"
     compileSdk = 35
 
