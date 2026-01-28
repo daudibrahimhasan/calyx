@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # calyz - Smart Call Insights & Leaderboards
 
 **calyz** is a premium Android application designed to transform your raw call history into meaningful, actionable insights. Featuring a state-of-the-art Jetpack Compose UI, it identifies your most frequent contacts, analyzes communication trends, and provides a beautiful interface for visualizing your calling habits.
@@ -15,6 +16,24 @@
 
 ---
 
+=======
+# Calyz - Smart Call Insights
+**calyz** is a premium Android application designed to transform your raw call history into meaningful, actionable insights. Featuring a state-of-the-art Jetpack Compose UI, it identifies your most frequent contacts, analyzes communication trends, and provides a beautiful interface for visualizing your calling habits.
+
+---
+
+## ✨ Key Features
+
+- 🏆 **Dynamic Leaderboards** – Instantly rank your connections using "Most Called" (frequency) or "Most Talked" (duration) metrics.
+- 📈 **Advanced Analytics** – Track your communication health with activity heatmaps and week-over-week trend comparisons.
+- ⚡ **Optimized Performance** – Features an incremental sync engine with a local Room database for near-instant load times.
+- 📅 **Flexible Time-Control** – Seamlessly toggle between **Weekly** snapshots and **All-Time** historical data.
+- 🎨 **Premium Aesthetics** – A high-end design system featuring glassmorphism, fluid animations, and a curated color palette.
+- 🔒 **Privacy First** – Your data is yours. All call logs are processed and stored strictly on-device. No external API calls, no tracking.
+
+---
+
+>>>>>>> 690ade823e22fa80e7eed75121f13a99b55c37d4
 ## 🛠️ Technology Stack
 
 - **Framework:** Jetpack Compose (Material Design 3)
