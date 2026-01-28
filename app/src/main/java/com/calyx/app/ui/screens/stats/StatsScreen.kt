@@ -83,7 +83,7 @@ fun StatsScreen(
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             color = textColor,
-            modifier = Modifier.padding(horizontal = 16.dp, top = 8.dp)
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)
         )
         
         Spacer(modifier = Modifier.height(4.dp))

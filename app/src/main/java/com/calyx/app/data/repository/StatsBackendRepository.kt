@@ -67,13 +67,14 @@ class StatsBackendRepository {
      * This is optional - only works when Firebase is available.
      */
     fun startListening() {
-        if (!firebaseAvailable || globalRef == null) return
+        val ref = globalRef
+        if (!firebaseAvailable || ref == null) return
         if (listenerAttached) return
         listenerAttached = true
         
         try {
             // Listen for real-time global stats updates
-            globalRef.addValueEventListener(object : ValueEventListener {
+            ref.addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     try {
                         val stats = snapshot.getValue(GlobalStats::class.java)
@@ -132,8 +133,9 @@ class StatsBackendRepository {
 
             if (totalDelta == 0 && todayContribution == 0 && weekContribution == 0) return@withContext
 
+            val ref = globalRef ?: return@withContext
             // 2. Perform Transactional Update
-            globalRef.runTransaction(object : Transaction.Handler {
+            ref.runTransaction(object : Transaction.Handler {
                 override fun doTransaction(currentData: MutableData): Transaction.Result {
                     val stats = currentData.getValue(GlobalStats::class.java) ?: GlobalStats()
                     
@@ -182,7 +184,7 @@ class StatsBackendRepository {
                             .apply()
                         
                         // Also update individual user node
-                        usersRef.child(userId).setValue(
+                        usersRef?.child(userId)?.setValue(
                             UserBackendStats(localTotalCalls, System.currentTimeMillis())
                         )
                     }
