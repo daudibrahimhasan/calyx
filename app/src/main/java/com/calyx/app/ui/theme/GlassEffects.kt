@@ -110,7 +110,7 @@ object GlassModifiers {
 // GRADIENT DEFINITIONS
 // ============================================
 
-object CalyxGradients {
+object CalyzGradients {
     
     // Header gradient: linear-gradient(180deg, #2BB15D 0%, #4EC651 100%)
     val headerGradient = Brush.verticalGradient(

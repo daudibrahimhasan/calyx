@@ -1,8 +1,12 @@
 package com.calyx.app.ui.screens.permissions
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -27,64 +31,48 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.calyx.app.ui.theme.*
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.rememberMultiplePermissionsState
 
-/**
- * Permission request screen with green glassmorphism design.
- */
-@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun PermissionScreen(
     onPermissionsGranted: () -> Unit
 ) {
     val context = LocalContext.current
-    
-    val permissionsState = rememberMultiplePermissionsState(
-        permissions = listOf(
-            android.Manifest.permission.READ_CALL_LOG,
-            android.Manifest.permission.READ_CONTACTS
-        )
-    ) { permissions ->
-        if (permissions.all { it.value }) {
-            onPermissionsGranted()
-        }
-    }
+    var permissionsGranted by remember { mutableStateOf(false) }
 
-    // Check if already granted
-    LaunchedEffect(permissionsState.allPermissionsGranted) {
-        if (permissionsState.allPermissionsGranted) {
-            onPermissionsGranted()
-        }
-    }
-
-    // Auto-request permissions on launch
-    LaunchedEffect(Unit) {
-        if (!permissionsState.allPermissionsGranted) {
-            permissionsState.launchMultiplePermissionRequest()
-        }
-    }
-
-    val permanentlyDenied = !permissionsState.shouldShowRationale && 
-                            permissionsState.revokedPermissions.isNotEmpty()
-
-    // Subtle floating animation
-    val infiniteTransition = rememberInfiniteTransition(label = "float")
-    val floatOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 6f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = EaseInOut),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "floatOffset"
+    val permissions = listOf(
+        Manifest.permission.READ_CALL_LOG,
+        Manifest.permission.READ_CONTACTS
     )
+
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissionResults ->
+        if (permissionResults.values.all { it }) {
+            permissionsGranted = true
+            onPermissionsGranted()
+        }
+    }
+
+    fun checkPermissions() {
+        if (permissions.all { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED }) {
+            permissionsGranted = true
+            onPermissionsGranted()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        checkPermissions()
+        if (!permissionsGranted) {
+            launcher.launch(permissions.toTypedArray())
+        }
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(CalyxGradients.screenBackgroundGradient)
+            .background(CalyzGradients.screenBackgroundGradient)
     ) {
         Column(
             modifier = Modifier
@@ -98,7 +86,6 @@ fun PermissionScreen(
             Box(
                 modifier = Modifier
                     .size(120.dp)
-                    .graphicsLayer { translationY = floatOffset }
                     .shadow(
                         elevation = 12.dp,
                         shape = CircleShape,
@@ -141,7 +128,7 @@ fun PermissionScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Text(
-                text = "Calyx needs your permission",
+                text = "Calyz needs your permission",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = PrimaryText,
@@ -159,7 +146,6 @@ fun PermissionScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // Permission explanation cards with glass effect
             PermissionExplanationCard(
                 icon = Icons.Default.Phone,
                 title = "Call Log Access",
@@ -176,68 +162,26 @@ fun PermissionScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Action button
-            if (permanentlyDenied) {
-                Button(
-                    onClick = {
-                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                            data = Uri.fromParts("package", context.packageName, null)
-                        }
-                        context.startActivity(intent)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(CornerRadius.medium),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = ForestGreen,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text(
-                        text = "Open Settings",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text(
-                    text = "Please grant permissions in Settings to continue",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = SecondaryText,
-                    textAlign = TextAlign.Center
+            Button(
+                onClick = { launcher.launch(permissions.toTypedArray()) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(CornerRadius.medium),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ForestGreen,
+                    contentColor = Color.White
                 )
-            } else {
-                Button(
-                    onClick = { permissionsState.launchMultiplePermissionRequest() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .shadow(
-                            elevation = 8.dp,
-                            shape = RoundedCornerShape(CornerRadius.medium),
-                            ambientColor = ShadowLevel3,
-                            spotColor = ShadowLevel2
-                        ),
-                    shape = RoundedCornerShape(CornerRadius.medium),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = VibrantGreen,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text(
-                        text = "Grant Permissions",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
+            ) {
+                Text(
+                    text = "Grant Permissions",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
-
+            
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Privacy notice
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center

@@ -4,13 +4,14 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.TrendingDown
-import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,11 +44,12 @@ fun StatsScreen(
     dailyCallCounts: List<Int> = emptyList(), // Real heatmap data (List of 35 ints)
     thisWeekCalls: List<Int> = listOf(0, 0, 0, 0, 0, 0, 0), // Real weekly data
     lastWeekCalls: List<Int> = listOf(0, 0, 0, 0, 0, 0, 0), // Real last week data
+    globalStats: com.calyx.app.data.models.GlobalStats = com.calyx.app.data.models.GlobalStats(),
     isDarkTheme: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     // Determine gradients and colors based on theme
-    val screenGradient = if (isDarkTheme) CalyxGradients.darkScreenBackgroundGradient else CalyxGradients.screenBackgroundGradient
+    val screenGradient = if (isDarkTheme) CalyzGradients.darkScreenBackgroundGradient else CalyzGradients.screenBackgroundGradient
     val textColor = MaterialTheme.colorScheme.onSurface
     val subTextColor = MaterialTheme.colorScheme.onSurfaceVariant
     val cardBgColor = MaterialTheme.colorScheme.surface
@@ -57,21 +59,31 @@ fun StatsScreen(
     
     // Calculate this week's total calls
     val thisWeekTotal = thisWeekCalls.sum()
+    
+    // Calculate Global Averages
+    val avgDailyCalls = if (globalStats.today.active_users > 0) 
+        (globalStats.today.calls / globalStats.today.active_users).toInt() 
+    else 0 // Default fallback if no data
+    
+    val avgWeeklyCalls = if (globalStats.week.active_users > 0) 
+        (globalStats.week.calls / globalStats.week.active_users).toInt() 
+    else 0 // Default fallback
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(screenGradient)
+            .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-            .padding(bottom = 80.dp) // Space for bottom nav
+            .padding(bottom = 100.dp) // Space for bottom nav
     ) {
         // Header
         Text(
             text = "Insights",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = textColor
+            color = textColor,
+            modifier = Modifier.padding(horizontal = 16.dp, top = 8.dp)
         )
         
         Spacer(modifier = Modifier.height(4.dp))
@@ -79,17 +91,19 @@ fun StatsScreen(
         Text(
             text = "Your personal call analytics",
             fontSize = 14.sp,
-            color = subTextColor
+            color = subTextColor,
+            modifier = Modifier.padding(horizontal = 16.dp)
         )
         
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         
         // Activity Heatmap - Using REAL data
         ActivityHeatmapCard(
             dailyCallCounts = dailyCallCounts,
             cardBgColor = cardBgColor, 
             textColor = textColor, 
-            subTextColor = subTextColor
+            subTextColor = subTextColor,
+            modifier = Modifier.padding(horizontal = 16.dp)
         )
         
         Spacer(modifier = Modifier.height(16.dp))
@@ -100,7 +114,8 @@ fun StatsScreen(
             lastWeekData = lastWeekCalls,
             cardBgColor = cardBgColor, 
             textColor = textColor, 
-            subTextColor = subTextColor
+            subTextColor = subTextColor,
+            modifier = Modifier.padding(horizontal = 16.dp)
         )
         
         Spacer(modifier = Modifier.height(16.dp))
@@ -109,11 +124,12 @@ fun StatsScreen(
         YouVsAverageCard(
             title = "You vs. Average - Today",
             yourCalls = todayCalls,
-            averageCalls = 32, // Average daily calls
+            averageCalls = avgDailyCalls,
             periodLabel = "today",
             cardBgColor = cardBgColor, 
             textColor = textColor, 
-            subTextColor = subTextColor
+            subTextColor = subTextColor,
+            modifier = Modifier.padding(horizontal = 16.dp)
         )
         
         Spacer(modifier = Modifier.height(16.dp))
@@ -122,11 +138,12 @@ fun StatsScreen(
         YouVsAverageCard(
             title = "You vs. Average - This Week",
             yourCalls = thisWeekTotal,
-            averageCalls = 210, // Average weekly calls
+            averageCalls = avgWeeklyCalls,
             periodLabel = "this week",
             cardBgColor = cardBgColor, 
             textColor = textColor, 
-            subTextColor = subTextColor
+            subTextColor = subTextColor,
+            modifier = Modifier.padding(horizontal = 16.dp)
         )
     }
 }
@@ -179,12 +196,6 @@ private fun ActivityHeatmapCard(
                     fontWeight = FontWeight.SemiBold,
                     color = textColor
                 )
-                
-                Text(
-                    text = "Last 35 days",
-                    fontSize = 12.sp,
-                    color = subTextColor
-                )
             }
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -207,8 +218,13 @@ private fun ActivityHeatmapCard(
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            // Grid: 6 rows x 7 columns to ensure all 35 days fit even with offset
-            // We need to offset by firstDayOfWeek to align correctly
+            // Grid: 6 rows x 7 columns
+            // Ensure we have at least 35 values (fill with 0 if needed)
+            val paddedCounts = if (dailyCallCounts.size >= 35) {
+                dailyCallCounts
+            } else {
+                dailyCallCounts + List(35 - dailyCallCounts.size) { 0 }
+            }
             
             for (week in 0 until 6) {
                 Row(
@@ -216,19 +232,17 @@ private fun ActivityHeatmapCard(
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     for (dayOfWeek in 0 until 7) {
-                        // Calculate if this cell should have data
-                        // First row: only show cells starting from firstDayOfWeek
                         val cellIndex = week * 7 + dayOfWeek - firstDayOfWeek
                         
-                        // Check if we have data for this index
-                        if (cellIndex >= 0 && cellIndex < dailyCallCounts.size) {
-                            val count = dailyCallCounts[cellIndex]
+                        // Show cell if index is valid for the 35-day range
+                        if (cellIndex >= 0 && cellIndex < 35) {
+                            val count = paddedCounts.getOrElse(cellIndex) { 0 }
                             HeatmapCell(
                                 value = count,
                                 textColor = textColor
                             )
                         } else {
-                            // Empty cell (before data starts or after data ends)
+                            // Empty cell (off-grid, e.g., days before the 35-day range started)
                             Box(modifier = Modifier.size(36.dp))
                         }
                     }
@@ -239,38 +253,28 @@ private fun ActivityHeatmapCard(
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            // Legend with consistent color scale
+            // Simpler Legend
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "0",
-                    fontSize = 10.sp,
-                    color = subTextColor
-                )
+                Text("Less", fontSize = 10.sp, color = subTextColor)
+                Spacer(modifier = Modifier.width(8.dp))
                 
-                Spacer(modifier = Modifier.width(6.dp))
-                
-                // Color scale legend: 0, 1-5, 6-10, 11-15, 16+
-                listOf(0, 3, 8, 13, 20).forEach { sampleCount ->
+                // Color scale legend: 0, 5, 15, 25, 35, 45, 55 (Samples for each range)
+                listOf(0, 5, 15, 25, 35, 45, 55).forEach { sampleCount ->
                     Box(
                         modifier = Modifier
-                            .size(14.dp)
+                            .size(12.dp)
                             .clip(RoundedCornerShape(3.dp))
-                            .background(getHeatmapColorByCount(sampleCount))
+                            .background(getHeatmapBrushByCount(sampleCount))
                     )
-                    Spacer(modifier = Modifier.width(3.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                 }
                 
-                Spacer(modifier = Modifier.width(3.dp))
-                
-                Text(
-                    text = "16+",
-                    fontSize = 10.sp,
-                    color = subTextColor
-                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("More", fontSize = 10.sp, color = subTextColor)
             }
         }
     }
@@ -281,52 +285,77 @@ private fun HeatmapCell(
     value: Int,
     textColor: Color
 ) {
-    val bgColor = getHeatmapColorByCount(value)
-    // Determine if text should be white (for darker cells)
-    val isHighActivity = value >= 11
+    val bgBrush = remember(value) { getHeatmapBrushByCount(value) }
     
+    // Special visual for 51+ calls ("God Mode" activity)
+    val isSpecial = value >= 51
+    val shape = remember { RoundedCornerShape(6.dp) } // Constant shape
+
+    // Determine text color based on value
+    val cellTextColor = remember(value) {
+        when {
+            value == 0 -> Color.White.copy(alpha = 0.3f)
+            value <= 20 -> Color.Black.copy(alpha = 0.7f)
+            else -> Color.White
+        }
+    }
+
     Box(
         modifier = Modifier
             .size(36.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(bgColor)
+            .clip(shape)
+            .background(bgBrush)
             .border(
-                width = 0.5.dp,
-                color = Color(0xFF2E7D32).copy(alpha = 0.15f),
-                shape = RoundedCornerShape(6.dp)
+                width = if (value > 0) 0.dp else 1.dp,
+                color = if (value > 0) Color.Transparent else Color.White.copy(alpha = 0.05f),
+                shape = shape
             ),
         contentAlignment = Alignment.Center
     ) {
-        // Always show the number (even 0 shows as blank cell)
+        // Special "Pulse" or "Glow" for 51+
+        if (isSpecial) {
+             Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(Color.White.copy(alpha = 0.5f), Color.Transparent)
+                        )
+                    )
+             )
+        }
+
         if (value > 0) {
             Text(
-                text = "$value",
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (isHighActivity) Color.White else textColor.copy(alpha = 0.8f)
+                text = value.toString(),
+                color = cellTextColor,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
         }
     }
 }
 
 /**
- * Get heatmap color based on ABSOLUTE call count (not percentage).
- * This ensures the SAME call count ALWAYS shows the SAME color.
- * 
- * Color Scale:
- * - 0 calls: Very light green (#E8F5E9)
- * - 1-5 calls: Light green (#A5D6A7)  
- * - 6-10 calls: Medium green (#66BB6A)
- * - 11-15 calls: Dark green (#43A047)
- * - 16+ calls: Darkest green (#2E7D32)
+ * Enhanced Gradient Scale: Light to Deep (Low to High activity)
+ * 0: Dark Grey (Empty)
+ * 1-10: Pale Mint -> Soft Green (Light)
+ * 11-20: Soft Green -> Fresh Green
+ * 21-30: Fresh Green -> Vibrant Green
+ * 31-40: Vibrant Green -> Rich Forest
+ * 41-50: Rich Forest -> Deepest Jungle (Deep)
+ * 51+: Deep Jungle -> Golden Olive (Legendary Deep)
  */
-private fun getHeatmapColorByCount(count: Int): Color {
+private fun getHeatmapBrushByCount(count: Int): Brush {
     return when {
-        count <= 0 -> Color(0xFFE8F5E9)  // Very light green
-        count <= 5 -> Color(0xFFA5D6A7)   // Light green
-        count <= 10 -> Color(0xFF66BB6A)  // Medium green
-        count <= 15 -> Color(0xFF43A047)  // Dark green
-        else -> Color(0xFF2E7D32)         // Darkest green
+        count <= 0 -> Brush.linearGradient(listOf(Color(0xFF1E1E1E), Color(0xFF1E1E1E))) // Dark Grey
+        count <= 10 -> Brush.verticalGradient(listOf(Color(0xFFE8F5E9), Color(0xFFC8E6C9))) // Pale -> Soft
+        count <= 20 -> Brush.verticalGradient(listOf(Color(0xFFC8E6C9), Color(0xFFA5D6A7))) // Soft -> Fresh
+        count <= 30 -> Brush.verticalGradient(listOf(Color(0xFFA5D6A7), Color(0xFF66BB6A))) // Fresh -> Vibrant
+        count <= 40 -> Brush.verticalGradient(listOf(Color(0xFF66BB6A), Color(0xFF2E7D32))) // Vibrant -> Rich
+        count <= 50 -> Brush.verticalGradient(listOf(Color(0xFF2E7D32), Color(0xFF1B5E20))) // Rich -> Deep
+        else -> Brush.verticalGradient(listOf(Color(0xFF1B5E20), Color(0xFFFFD700)))        // Deep -> Gold
     }
 }
 
@@ -380,7 +409,7 @@ private fun TrendLineCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = if (isUp) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                        imageVector = if (isUp) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = trendColor

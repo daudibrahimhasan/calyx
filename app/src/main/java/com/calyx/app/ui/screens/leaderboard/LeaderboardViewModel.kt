@@ -8,10 +8,8 @@ import com.calyx.app.data.models.RankingCategory
 import com.calyx.app.data.models.TimeRange
 import com.calyx.app.data.repository.CallLogRepository
 import com.calyx.app.data.repository.CallSummary
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 
 /**
  * ViewModel for the Leaderboard screen.
@@ -27,7 +25,7 @@ class LeaderboardViewModel(application: Application) : AndroidViewModel(applicat
 
     // Caller stats list
     private val _callerStatsList = MutableStateFlow<List<CallerStats>>(emptyList())
-    val callerStatsList: StateFlow<List<CallerStats>> = _callerStatsList.asStateFlow()
+    // Remove direct exposing of _callerStatsList to ensure sorting is handled via StateFlow combinations
 
     // Selected category
     private val _selectedCategory = MutableStateFlow(RankingCategory.MOST_CALLED)
@@ -49,6 +47,30 @@ class LeaderboardViewModel(application: Application) : AndroidViewModel(applicat
     private val _summary = MutableStateFlow(CallSummary(0, 0L, 0, 0, 0, 0))
     val summary: StateFlow<CallSummary> = _summary.asStateFlow()
 
+    // Derived sorted list - ONLY recalculates when data or category changes
+    private val sortedStats = combine(_callerStatsList, _selectedCategory) { stats, category ->
+        when (category) {
+            RankingCategory.MOST_CALLED -> stats.sortedBy { it.rankByCount }
+            RankingCategory.MOST_TALKED -> stats.sortedBy { it.rankByDuration }
+        }
+    }
+    .flowOn(Dispatchers.Default)
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList<CallerStats>())
+
+    // Derived Top 3
+    val topThree = sortedStats.map { stats ->
+        Triple(stats.getOrNull(0), stats.getOrNull(1), stats.getOrNull(2))
+    }
+    .flowOn(Dispatchers.Default)
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Triple<CallerStats?, CallerStats?, CallerStats?>(null, null, null))
+
+    // Derived Rest of List
+    val restOfList = sortedStats.map { stats ->
+        stats.drop(3)
+    }
+    .flowOn(Dispatchers.Default)
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList<CallerStats>())
+
     // ========== STATS SCREEN DATA (REAL) ==========
     
     // Daily call counts for heatmap (last 35 days) - List of counts ordered from oldest to newest
@@ -65,7 +87,6 @@ class LeaderboardViewModel(application: Application) : AndroidViewModel(applicat
 
     init {
         loadCallLog()
-        loadStatsData()
     }
 
     /**
@@ -83,9 +104,12 @@ class LeaderboardViewModel(application: Application) : AndroidViewModel(applicat
                 
                 _uiState.value = LeaderboardUiState(
                     isLoading = false,
-                    callerStats = getSortedStats(stats),
+                    callerStats = stats, // Passing unsorted list, UI should use sorted flows
                     summary = _summary.value
                 )
+                
+                // Load stats data after main log is loaded and synced
+                loadStatsData()
             } catch (e: Exception) {
                 _errorMessage.value = e.message ?: "Failed to load call log"
                 _uiState.value = _uiState.value.copy(isLoading = false, error = _errorMessage.value)
@@ -95,18 +119,59 @@ class LeaderboardViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    // Backend Repository (lazy to ensure proper initialization order)
+    private val backendRepo by lazy { com.calyx.app.data.repository.StatsBackendRepository() }
+    
+    // Global Stats (lazy to match backendRepo initialization)
+    val globalStats: StateFlow<com.calyx.app.data.models.GlobalStats> by lazy { backendRepo.globalStats }
+
     /**
      * Load data for the Stats screen (heatmap and trends).
+     * Also triggers backend sync.
      */
     private fun loadStatsData() {
         viewModelScope.launch {
             try {
-                // Load heatmap data (last 35 days)
+                // 0. Start Firebase listener (non-blocking, happens on background thread)
+                backendRepo.startListening()
+                
+                // 1. Load local heatmap data (last 35 days)
                 _dailyCallCounts.value = repository.getDailyCallCounts(35)
                 
-                // Load weekly trend data
-                _thisWeekCalls.value = repository.getWeeklyCallCounts()
-                _lastWeekCalls.value = repository.getLastWeekCallCounts()
+                // 2. Load local weekly trend data
+                val thisWeek = repository.getWeeklyCallCounts()
+                val lastWeek = repository.getLastWeekCallCounts()
+                _thisWeekCalls.value = thisWeek
+                _lastWeekCalls.value = lastWeek
+                
+                // 3. Initiate Backend Sync
+                // Get stable User ID (create if not exists)
+                val prefs = getApplication<Application>().getSharedPreferences("calyz_prefs", android.content.Context.MODE_PRIVATE)
+                var userId = prefs.getString("user_id", null)
+                if (userId == null) {
+                    userId = java.util.UUID.randomUUID().toString()
+                    prefs.edit().putString("user_id", userId).apply()
+                }
+                
+                // Calculate local stats for sync
+                val allTimeStats = repository.getCallerStats(TimeRange.ALL_TIME)
+                val allTimeSummary = repository.calculateSummary(allTimeStats)
+                val localTotalCalls = allTimeSummary.totalCalls
+                
+                val localTodayCalls = thisWeek.lastOrNull() ?: 0 // Assuming last item is today
+                val localWeekCalls = thisWeek.sum()
+                
+                // Fire and forget sync
+                launch {
+                    backendRepo.syncStats(
+                        context = getApplication(),
+                        userId = userId,
+                        localTotalCalls = localTotalCalls,
+                        localTodayCalls = localTodayCalls, 
+                        localWeekCalls = localWeekCalls
+                    )
+                }
+                
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -118,9 +183,7 @@ class LeaderboardViewModel(application: Application) : AndroidViewModel(applicat
      */
     fun switchCategory(category: RankingCategory) {
         _selectedCategory.value = category
-        _uiState.value = _uiState.value.copy(
-            callerStats = getSortedStats(_callerStatsList.value)
-        )
+        // No need to manual update _uiState, sortedStats handles it
     }
 
     /**
@@ -139,46 +202,17 @@ class LeaderboardViewModel(application: Application) : AndroidViewModel(applicat
     fun refreshData() {
         viewModelScope.launch {
             _isLoading.value = true
-            repository.clearAllData()
+            // repository.clearAllData() // Removing this to prevent empty state flicker
             loadCallLog()
             loadStatsData()
         }
     }
 
     /**
-     * Get sorted stats based on current category.
-     */
-    private fun getSortedStats(stats: List<CallerStats>): List<CallerStats> {
-        return when (_selectedCategory.value) {
-            RankingCategory.MOST_CALLED -> stats.sortedBy { it.rankByCount }
-            RankingCategory.MOST_TALKED -> stats.sortedBy { it.rankByDuration }
-        }
-    }
-
-    /**
-     * Get top 3 callers for podium display.
-     */
-    fun getTopThree(): Triple<CallerStats?, CallerStats?, CallerStats?> {
-        val sorted = getSortedStats(_callerStatsList.value)
-        return Triple(
-            sorted.getOrNull(0),
-            sorted.getOrNull(1),
-            sorted.getOrNull(2)
-        )
-    }
-
-    /**
-     * Get callers ranked 4th and below.
-     */
-    fun getRestOfList(): List<CallerStats> {
-        return getSortedStats(_callerStatsList.value).drop(3)
-    }
-    
-    /**
      * Get top 10 callers for share poster.
      */
     fun getTopTen(): List<CallerStats> {
-        return getSortedStats(_callerStatsList.value).take(10)
+        return sortedStats.value.take(10)
     }
 
     override fun onCleared() {

@@ -10,19 +10,19 @@ import com.calyx.app.data.local.entities.DailyStatsEntity
 import com.calyx.app.data.local.entities.SyncMetadata
 
 @Database(entities = [CallerStatsEntity::class, SyncMetadata::class, DailyStatsEntity::class], version = 1, exportSchema = false)
-abstract class CalyxDatabase : RoomDatabase() {
+abstract class CalyzDatabase : RoomDatabase() {
     abstract fun callerStatsDao(): CallerStatsDao
 
     companion object {
         @Volatile
-        private var INSTANCE: CalyxDatabase? = null
+        private var INSTANCE: CalyzDatabase? = null
 
-        fun getDatabase(context: Context): CalyxDatabase {
+        fun getDatabase(context: Context): CalyzDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
-                    CalyxDatabase::class.java,
-                    "calyx_database"
+                    CalyzDatabase::class.java,
+                    "calyz_database"
                 )
                 .fallbackToDestructiveMigration()
                 .build()

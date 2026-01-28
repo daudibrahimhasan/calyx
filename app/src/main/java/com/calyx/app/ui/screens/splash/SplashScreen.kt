@@ -25,8 +25,8 @@ import kotlinx.coroutines.delay
  * 
  * Design Spec:
  * - Background: Linear gradient (#2BB15D → #4EC651)
- * - Logo: Calyx logo from resources
- * - App name: "Calyx" in Lufga Bold, white
+ * - Logo: Calyz logo from resources
+ * - App name: "Calyz" in Lufga Bold, white
  * - Tagline: "Call Log Analyzer" in Lufga Medium, white 80%
  * 
  * Animations:
@@ -133,7 +133,7 @@ fun SplashScreen(
             // Logo
             Image(
                 painter = painterResource(id = R.drawable.calyx_logo),
-                contentDescription = "Calyx Logo",
+                contentDescription = "Calyz Logo",
                 modifier = Modifier.size(140.dp)
             )
             
@@ -141,7 +141,7 @@ fun SplashScreen(
             
             // App name
             Text(
-                text = "Calyx",
+                text = "Calyz",
                 style = MaterialTheme.typography.displayLarge,
                 fontWeight = FontWeight.Bold,
                 color = Color.White

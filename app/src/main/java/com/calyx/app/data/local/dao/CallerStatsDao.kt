@@ -14,6 +14,9 @@ interface CallerStatsDao {
     @Query("SELECT * FROM caller_stats")
     suspend fun getAllStatsList(): List<CallerStatsEntity>
 
+    @Query("SELECT * FROM caller_stats WHERE phoneNumber IN (:phoneNumbers)")
+    suspend fun getStatsForNumbers(phoneNumbers: List<String>): List<CallerStatsEntity>
+
     @Query("SELECT * FROM caller_stats WHERE phoneNumber = :phoneNumber")
     suspend fun getStatsForNumber(phoneNumber: String): CallerStatsEntity?
 

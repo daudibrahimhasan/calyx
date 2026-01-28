@@ -69,10 +69,10 @@ fun RankBadge(
 @Composable
 fun getRankGradient(rank: Int): Brush {
     return when (rank) {
-        1 -> CalyxGradients.winnerPodiumGradient
-        2 -> CalyxGradients.silverPodiumGradient
-        3 -> CalyxGradients.bronzePodiumGradient
-        else -> CalyxGradients.tealAccentGradient
+        1 -> CalyzGradients.winnerPodiumGradient
+        2 -> CalyzGradients.silverPodiumGradient
+        3 -> CalyzGradients.bronzePodiumGradient
+        else -> CalyzGradients.tealAccentGradient
     }
 }
 

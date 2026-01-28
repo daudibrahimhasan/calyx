@@ -122,7 +122,9 @@ fun RankedListItem(
                 ),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
+                // Force White in dark mode if needed, or stick to surface calc.
+                // Using MaterialTheme.colorScheme.onSurface is usually correct, but let's be explicit for "Night Mode" readability
+                color = MaterialTheme.colorScheme.onSurface, 
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -130,7 +132,11 @@ fun RankedListItem(
             Text(
                 text = getSubtitle(callerStats, category),
                 fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                // Boost visibility: onSurfaceVariant can be too dark. 
+                // Let's use a slightly brighter alpha or specific color if it's dark theme.
+                // Since this component doesn't know about `isDarkTheme` explicitly, we rely on the theme wrapper.
+                // However, we can manually lighten it.
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

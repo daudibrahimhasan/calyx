@@ -13,7 +13,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 // ============================================
-// CALYX GREEN EDITION - Theme Configuration
+// CALYZ GREEN EDITION - Theme Configuration
 // ============================================
 
 private val LightColorScheme = lightColorScheme(
@@ -67,7 +67,7 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 @Composable
-fun CalyxTheme(
+fun CalyzTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Disable dynamic color to use our custom green palette
     dynamicColor: Boolean = false,
@@ -81,21 +81,24 @@ fun CalyxTheme(
         SideEffect {
             val window = (view.context as Activity).window
             
-            // Status bar color based on theme
-            window.statusBarColor = if (darkTheme) {
-                DeepJungle.toArgb()  // Dark theme: Deep Jungle
-            } else {
-                ForestGreen.toArgb() // Light theme: Forest Green
-            }
+            // Modern Edge-to-Edge approach: 
+            // We've called enableEdgeToEdge() in MainActivity.
+            // Here we just manage the light/dark appearance of system icons.
             
-            // Status bar icons: light on dark background
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+            val insetsController = WindowCompat.getInsetsController(window, view)
             
-            // Navigation bar styling
+            // Status bar icons: 
+            // In dark theme, we want light icons. In light theme, we want dark icons.
+            insetsController.isAppearanceLightStatusBars = !darkTheme
+            
+            // Navigation bar icons:
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                window.navigationBarColor = colorScheme.surface.toArgb()
-                WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
+                insetsController.isAppearanceLightNavigationBars = !darkTheme
             }
+            
+            // Note: We avoid setting window.statusBarColor and window.navigationBarColor 
+            // directly here as they are deprecated in favor of edge-to-edge.
+            // The content will naturally flow behind transparent bars.
         }
     }
 

@@ -68,7 +68,7 @@ fun TopThreePodium(
     }
 
     // Fixed podium dimensions
-    val winnerCardHeight = 140.dp
+    val winnerCardHeight = 155.dp // Increased from 140dp
     val winnerAvatarSize = 72.dp
     val secondCardHeight = winnerCardHeight * 0.70f  // 70% of winner
     val secondAvatarSize = 60.dp
@@ -412,13 +412,14 @@ private fun GlassCardContent(
                     else -> 11.sp
                 },
                 fontWeight = FontWeight.SemiBold,
-                color = if (isDarkTheme) BrightMint else DarkForest,
+                // Fix for hard to read text in Night Mode: Use pure White for dark theme instead of muted mint
+                color = if (isDarkTheme) Color.White else DarkForest,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Score with glassmorphism pill - Theme-aware colors
             Box(
@@ -446,7 +447,7 @@ private fun GlassCardContent(
                         else -> 10.sp
                     },
                     fontWeight = FontWeight.Bold,
-                    color = if (isDarkTheme) DarkForest else ForestGreen
+                    color = if (isDarkTheme) Color.White else ForestGreen
                 )
             }
         }

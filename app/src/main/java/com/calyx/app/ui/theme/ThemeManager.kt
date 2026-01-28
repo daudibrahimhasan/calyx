@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.map
  * Uses DataStore to persist theme choice across app restarts.
  * The theme state is exposed as a Flow so it can be collected in Compose.
  */
-private val Context.themeDataStore by preferencesDataStore(name = "calyx_theme_prefs")
+private val Context.themeDataStore by preferencesDataStore(name = "calyz_theme_prefs")
 
 object ThemePreferenceKeys {
     val IS_DARK_THEME = booleanPreferencesKey("is_dark_theme")

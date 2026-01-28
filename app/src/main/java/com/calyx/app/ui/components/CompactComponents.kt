@@ -43,7 +43,7 @@ fun CompactFilterStrip(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(CalyxGradients.headerGradient)
+            .background(CalyzGradients.headerGradient)
             .padding(horizontal = 16.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically

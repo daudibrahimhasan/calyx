@@ -6,7 +6,7 @@ import android.database.Cursor
 import android.net.Uri
 import android.provider.CallLog
 import android.provider.ContactsContract
-import com.calyx.app.data.local.CalyxDatabase
+import com.calyx.app.data.local.CalyzDatabase
 import com.calyx.app.data.local.entities.CallerStatsEntity
 import com.calyx.app.data.local.entities.DailyStatsEntity
 import com.calyx.app.data.local.entities.SyncMetadata
@@ -17,6 +17,8 @@ import com.calyx.app.data.models.TimeRange
 import com.calyx.app.utils.DateUtils
 import com.calyx.app.utils.PhoneNumberUtils
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -28,7 +30,7 @@ class CallLogRepository(private val context: Context) {
 
     private val contentResolver: ContentResolver = context.contentResolver
     private val contactCache = mutableMapOf<String, ContactInfo?>()
-    private val database = CalyxDatabase.getDatabase(context)
+    private val database = CalyzDatabase.getDatabase(context)
     private val dao = database.callerStatsDao()
     private val syncMutex = Mutex()
 
@@ -118,6 +120,7 @@ class CallLogRepository(private val context: Context) {
     /**
      * Incremental sync of call stats into local Room DB.
      * Synchronizes both CallerStats (per person) and DailyStats (per day).
+     * OPTIMIZED: Uses mutable objects to reduce GC pressure.
      */
     private suspend fun syncCallerStats() = syncMutex.withLock {
         withContext(Dispatchers.IO) {
@@ -132,10 +135,18 @@ class CallLogRepository(private val context: Context) {
                 .associateBy { it.dateTimestamp }
                 .toMutableMap()
 
-            // Load existing caller stats into a mutable map for quick updates
-            // For large databases, we might want to only load callers present in newCalls
-            val existingEntities = dao.getAllStatsList()
-            val callerStatsMap = existingEntities.associateBy { it.phoneNumber }.toMutableMap()
+            // Convert to mutable for processing
+            val mutableDailyStats = dailyStatsMap.mapValues { (_, v) -> 
+                 MutableDailyStats.fromEntity(v)
+            }.toMutableMap()
+
+            val phoneNumbers = newCalls.map { it.phoneNumber }.distinct()
+            val existingEntities = dao.getStatsForNumbers(phoneNumbers)
+            
+            // Convert existing entities to mutable map
+            val callerStatsMap = existingEntities.associate { 
+                it.phoneNumber to MutableCallerStatsEntity.fromEntity(it) 
+            }.toMutableMap()
             
             var maxTimestamp = lastSync
 
@@ -147,47 +158,126 @@ class CallLogRepository(private val context: Context) {
                     PhoneNumberUtils.normalize(call.phoneNumber)
                 }
 
-                val currentCaller = callerStatsMap[normalized] ?: CallerStatsEntity(
-                    phoneNumber = normalized,
-                    displayName = (if (!call.contactName.isNullOrEmpty()) call.contactName else null) ?: call.phoneNumber,
-                    contactId = null,
-                    profilePhotoUri = call.photoUri,
-                    firstCallDate = call.date
-                )
-
-                callerStatsMap[normalized] = currentCaller.copy(
-                    totalCalls = currentCaller.totalCalls + 1,
-                    incomingCalls = currentCaller.incomingCalls + if (call.callType == CallEntry.TYPE_INCOMING) 1 else 0,
-                    outgoingCalls = currentCaller.outgoingCalls + if (call.callType == CallEntry.TYPE_OUTGOING) 1 else 0,
-                    missedCalls = currentCaller.missedCalls + if (isMissed(call.callType)) 1 else 0,
-                    totalDuration = currentCaller.totalDuration + call.duration,
-                    lastCallDate = maxOf(currentCaller.lastCallDate, call.date),
-                    firstCallDate = if (currentCaller.firstCallDate == 0L) call.date else minOf(currentCaller.firstCallDate, call.date),
-                    displayName = if (!call.contactName.isNullOrEmpty()) call.contactName else currentCaller.displayName,
-                    profilePhotoUri = if (!call.photoUri.isNullOrEmpty()) call.photoUri else currentCaller.profilePhotoUri
-                )
+                val currentCaller = callerStatsMap.getOrPut(normalized) {
+                    MutableCallerStatsEntity(
+                        phoneNumber = normalized,
+                        displayName = (if (!call.contactName.isNullOrEmpty()) call.contactName else null) ?: call.phoneNumber,
+                        profilePhotoUri = call.photoUri,
+                        firstCallDate = call.date
+                    )
+                }
+                
+                // Update mutable fields - No object allocation!
+                currentCaller.totalCalls++
+                if (call.callType == CallEntry.TYPE_INCOMING) currentCaller.incomingCalls++
+                if (call.callType == CallEntry.TYPE_OUTGOING) currentCaller.outgoingCalls++
+                if (isMissed(call.callType)) currentCaller.missedCalls++
+                currentCaller.totalDuration += call.duration
+                currentCaller.lastCallDate = maxOf(currentCaller.lastCallDate, call.date)
+                if (currentCaller.firstCallDate == 0L) currentCaller.firstCallDate = call.date else currentCaller.firstCallDate = minOf(currentCaller.firstCallDate, call.date)
+                
+                if (!call.contactName.isNullOrEmpty()) currentCaller.displayName = call.contactName
+                if (!call.photoUri.isNullOrEmpty()) currentCaller.profilePhotoUri = call.photoUri
 
                 // 2. Update Daily Stats
                 val dayStart = getStartOfDay(call.date)
-                val currentDaily = dailyStatsMap[dayStart] ?: DailyStatsEntity(dateTimestamp = dayStart)
+                val currentDaily = mutableDailyStats.getOrPut(dayStart) {
+                    MutableDailyStats(dateTimestamp = dayStart)
+                }
                 
-                dailyStatsMap[dayStart] = currentDaily.copy(
-                    totalCalls = currentDaily.totalCalls + 1,
-                    totalDuration = currentDaily.totalDuration + call.duration,
-                    incomingCalls = currentDaily.incomingCalls + if (call.callType == CallEntry.TYPE_INCOMING) 1 else 0,
-                    outgoingCalls = currentDaily.outgoingCalls + if (call.callType == CallEntry.TYPE_OUTGOING) 1 else 0,
-                    missedCalls = currentDaily.missedCalls + if (isMissed(call.callType)) 1 else 0
-                )
+                currentDaily.totalCalls++
+                currentDaily.totalDuration += call.duration
+                if (call.callType == CallEntry.TYPE_INCOMING) currentDaily.incomingCalls++
+                if (call.callType == CallEntry.TYPE_OUTGOING) currentDaily.outgoingCalls++
+                if (isMissed(call.callType)) currentDaily.missedCalls++
                 
                 if (call.date > maxTimestamp) maxTimestamp = call.date
             }
 
+            // Convert back to Entities for saving
+            val callerEntitiesToSave = callerStatsMap.values.map { it.toEntity() }
+            val dailyEntitiesToSave = mutableDailyStats.values.map { it.toEntity() }
+
             // Save updated stats back to DB
-            dao.upsertStats(callerStatsMap.values.toList())
-            dao.upsertDailyStats(dailyStatsMap.values.toList())
+            dao.upsertStats(callerEntitiesToSave)
+            dao.upsertDailyStats(dailyEntitiesToSave)
             
             // Update sync metadata
             dao.updateMetadata(SyncMetadata("last_sync_timestamp", maxTimestamp))
+        }
+    }
+
+    // Helper classes for mutable state tracking (Memory Optimization)
+    private data class MutableCallerStatsEntity(
+        var phoneNumber: String,
+        var displayName: String,
+        var contactId: String? = null,
+        var profilePhotoUri: String? = null,
+        var totalCalls: Int = 0,
+        var incomingCalls: Int = 0,
+        var outgoingCalls: Int = 0,
+        var missedCalls: Int = 0,
+        var totalDuration: Long = 0L,
+        var firstCallDate: Long = 0L,
+        var lastCallDate: Long = 0L
+    ) {
+        fun toEntity() = CallerStatsEntity(
+            phoneNumber = phoneNumber,
+            contactId = contactId,
+            displayName = displayName,
+            profilePhotoUri = profilePhotoUri,
+            totalCalls = totalCalls,
+            incomingCalls = incomingCalls,
+            outgoingCalls = outgoingCalls,
+            missedCalls = missedCalls,
+            totalDuration = totalDuration,
+            firstCallDate = firstCallDate,
+            lastCallDate = lastCallDate
+        )
+
+        companion object {
+            fun fromEntity(e: CallerStatsEntity) = MutableCallerStatsEntity(
+                phoneNumber = e.phoneNumber,
+                displayName = e.displayName,
+                contactId = e.contactId,
+                profilePhotoUri = e.profilePhotoUri,
+                totalCalls = e.totalCalls,
+                incomingCalls = e.incomingCalls,
+                outgoingCalls = e.outgoingCalls,
+                missedCalls = e.missedCalls,
+                totalDuration = e.totalDuration,
+                firstCallDate = e.firstCallDate,
+                lastCallDate = e.lastCallDate
+            )
+        }
+    }
+
+    private data class MutableDailyStats(
+        var dateTimestamp: Long,
+        var totalCalls: Int = 0,
+        var totalDuration: Long = 0L,
+        var incomingCalls: Int = 0,
+        var outgoingCalls: Int = 0,
+        var missedCalls: Int = 0
+    ) {
+        fun toEntity() = DailyStatsEntity(
+            dateTimestamp = dateTimestamp,
+            totalCalls = totalCalls,
+            totalDuration = totalDuration,
+            incomingCalls = incomingCalls,
+            outgoingCalls = outgoingCalls,
+            missedCalls = missedCalls
+        )
+
+        companion object {
+            fun fromEntity(e: DailyStatsEntity) = MutableDailyStats(
+                dateTimestamp = e.dateTimestamp,
+                totalCalls = e.totalCalls,
+                totalDuration = e.totalDuration,
+                incomingCalls = e.incomingCalls,
+                outgoingCalls = e.outgoingCalls,
+                missedCalls = e.missedCalls
+            )
         }
     }
 
@@ -274,8 +364,9 @@ class CallLogRepository(private val context: Context) {
     /**
      * Get fully processed and ranked caller statistics.
      * Uses the optimized Room cache for ALL_TIME range.
+     * EXECUTED ON IO THREAD to prevent UI Lag.
      */
-    suspend fun getCallerStats(timeRange: TimeRange): List<CallerStats> {
+    suspend fun getCallerStats(timeRange: TimeRange): List<CallerStats> = withContext(Dispatchers.IO) {
         if (timeRange == TimeRange.ALL_TIME) {
             // Incremental sync - only fetches new calls!
             syncCallerStats()
@@ -284,26 +375,32 @@ class CallLogRepository(private val context: Context) {
             val cachedEntities = dao.getAllStatsList()
             var stats = cachedEntities.map { mapToModel(it) }
             
-            // Enrich with contactId and real names (if missing in cache)
-            // Note: This is still fast because we can background it or rely on existing cache
+            // Enrich with contactId and real names (if missing in cache) - Optimized with parallel lookups
+            val statsToEnrich = stats.filter { it.contactId == null && !PhoneNumberUtils.isPrivateNumber(it.phoneNumber) }
+            val enrichmentMap = statsToEnrich.map { caller ->
+                async {
+                    caller.phoneNumber to lookupContact(caller.phoneNumber)
+                }
+            }.awaitAll().toMap()
+
             stats = stats.map { caller ->
-                if (caller.contactId == null && !PhoneNumberUtils.isPrivateNumber(caller.phoneNumber)) {
-                    val info = lookupContact(caller.phoneNumber)
+                val info = enrichmentMap[caller.phoneNumber]
+                if (info != null) {
                     caller.copy(
-                        contactId = info?.contactId,
-                        displayName = info?.displayName ?: caller.displayName,
-                        profilePhotoUri = info?.photoUri ?: caller.profilePhotoUri
+                        contactId = info.contactId,
+                        displayName = info.displayName,
+                        profilePhotoUri = info.photoUri
                     )
                 } else caller
             }
 
             val mergedStats = mergeByContactId(stats)
-            return applyRankings(mergedStats)
+            return@withContext applyRankings(mergedStats)
         } else {
             // Weekly is still fast via direct query
             val calls = fetchCallLog(timeRange)
             val stats = aggregateStats(calls)
-            return applyRankings(stats)
+            return@withContext applyRankings(stats)
         }
     }
 

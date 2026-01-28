@@ -27,6 +27,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -39,7 +41,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 // DataStore for ghost mode preference only
-private val Context.settingsDataStore by preferencesDataStore(name = "calyx_user_settings")
+private val Context.settingsDataStore by preferencesDataStore(name = "calyz_user_settings")
 
 object SettingsPreferenceKeys {
     val GHOST_MODE = booleanPreferencesKey("ghost_mode")
@@ -59,6 +61,9 @@ fun ProfileScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    
+    // Haptics
+    val haptic = LocalHapticFeedback.current
     
     // Theme manager for app-wide theme changes
     val themeManager = rememberThemeManager()
@@ -87,11 +92,15 @@ fun ProfileScreen(
         )
     }
     
+    // Load user name from SharedPreferences
+    val prefs = remember { context.getSharedPreferences("calyz_prefs", android.content.Context.MODE_PRIVATE) }
+    val userName = remember { prefs.getString("user_name", "Calyz User") ?: "Calyz User" }
+    
     // Choose background gradient based on theme
     val backgroundGradient = if (darkTheme) {
-        CalyxGradients.darkScreenBackgroundGradient
+        CalyzGradients.darkScreenBackgroundGradient
     } else {
-        CalyxGradients.screenBackgroundGradient
+        CalyzGradients.screenBackgroundGradient
     }
 
     Column(
@@ -101,7 +110,10 @@ fun ProfileScreen(
             .verticalScroll(rememberScrollState())
     ) {
         // Profile Header
-        ProfileHeader(isDarkTheme = darkTheme)
+        ProfileHeader(
+            userName = if (userName.isBlank()) "Calyz User" else userName,
+            isDarkTheme = darkTheme
+        )
         
         Spacer(modifier = Modifier.height(24.dp))
         
@@ -144,6 +156,7 @@ fun ProfileScreen(
                         isChecked = ghostMode,
                         isDarkTheme = darkTheme,
                         onCheckedChange = { checked ->
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             ghostMode = checked
                             scope.launch {
                                 context.settingsDataStore.edit { prefs ->
@@ -162,6 +175,7 @@ fun ProfileScreen(
                     ThemeToggleItem(
                         isDarkTheme = darkTheme,
                         onThemeChange = { isDark ->
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             // Use ThemeManager for app-wide theme change
                             scope.launch {
                                 themeManager.setDarkTheme(isDark)
@@ -244,14 +258,17 @@ fun ProfileScreen(
             )
         }
         
-        Spacer(modifier = Modifier.height(80.dp)) // Space for bottom nav
+        Spacer(modifier = Modifier.height(100.dp)) // Space for bottom nav
     }
 }
 
 @Composable
-private fun ProfileHeader(isDarkTheme: Boolean = false) {
+private fun ProfileHeader(
+    userName: String,
+    isDarkTheme: Boolean = false
+) {
     val headerGradient = if (isDarkTheme) {
-        CalyxGradients.darkHeaderGradient
+        CalyzGradients.darkHeaderGradient
     } else {
         Brush.verticalGradient(colors = listOf(ForestGreen, VibrantGreen))
     }
@@ -262,7 +279,8 @@ private fun ProfileHeader(isDarkTheme: Boolean = false) {
         modifier = Modifier
             .fillMaxWidth()
             .background(headerGradient)
-            .padding(top = 48.dp, bottom = 32.dp),
+            .statusBarsPadding()
+            .padding(top = 16.dp, bottom = 32.dp), // Reduced from 48dp to 16dp
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -294,19 +312,11 @@ private fun ProfileHeader(isDarkTheme: Boolean = false) {
             
             // Display Name
             Text(
-                text = "Calyx User",
-                fontSize = 22.sp,
+                text = userName,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isDarkTheme) BrightMint else Color.White
-            )
-            
-            Spacer(modifier = Modifier.height(4.dp))
-            
-            // Email
-            Text(
-                text = "user@calyx.app",
-                fontSize = 14.sp,
-                color = if (isDarkTheme) MutedSage else Color.White.copy(alpha = 0.8f)
+                color = if (isDarkTheme) BrightMint else Color.White,
+                fontFamily = LufgaFontFamily
             )
         }
     }

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Calyx</string>
-    <string name="permission_title">Calyx needs your permission</string>
+    <string name="app_name">Calyz</string>
+    <string name="permission_title">Calyz needs your permission</string>
     <string name="permission_subtitle">To create your personalized leaderboard</string>
     <string name="call_log_permission_title">Call Log Access</string>
     <string name="call_log_permission_desc">To analyze your calling patterns and identify your most frequent contacts</string>
@@ -11,7 +11,7 @@
     <string name="privacy_notice">Your data never leaves your device</string>
     <string name="open_settings">Open Settings</string>
     <string name="permission_denied_title">Permissions Required</string>
-    <string name="permission_denied_message">Calyx needs call log and contacts permissions to show your leaderboard. Please grant them in Settings.</string>
+    <string name="permission_denied_message">Calyz needs call log and contacts permissions to show your leaderboard. Please grant them in Settings.</string>
     <string name="leaderboard">Leaderboard</string>
     <string name="most_called">Most Called</string>
     <string name="most_talked">Most Talked</string>

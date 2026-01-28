@@ -10,7 +10,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,7 +33,7 @@ import com.calyx.app.ui.theme.*
  * - Theme-aware colors (light/dark mode)
  */
 @Composable
-fun CalyxBottomNavBar(
+fun CalyzBottomNavBar(
     currentRoute: String,
     onNavigate: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier
@@ -112,10 +111,7 @@ private fun BottomNavItemView(
             .background(backgroundColor)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = rememberRipple(
-                    bounded = true,
-                    color = VibrantGreen.copy(alpha = 0.3f)
-                ),
+                indication = null, // Using animated background color for feedback
                 onClick = onClick
             )
             .padding(vertical = 6.dp),
