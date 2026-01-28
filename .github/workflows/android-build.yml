@@ -1,0 +1,71 @@
+# Calyz Android Build
+# This workflow builds the Android app with optional Firebase support
+# The app works 100% offline-first, Firebase is only for leaderboard feature
+
+name: Android CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Setup Firebase config (Optional)
+        run: |
+          # Use dummy config for builds without Firebase secrets
+          # This is free because the app works offline-first
+          if [ ! -f app/google-services.json ]; then
+            echo "Using dummy Firebase config for offline-only build"
+            cp app/google-services.dummy.json app/google-services.json
+          fi
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+
+      - name: Check 16KB Page Size Compatibility
+        run: |
+          echo "Checking 16KB page size alignment..."
+          python3 -c "
+          import zipfile
+          import sys
+
+          with zipfile.ZipFile('app/build/outputs/apk/debug/app-debug.apk', 'r') as apk:
+              unaligned = []
+              for info in apk.infolist():
+                  if info.filename.endswith('.so'):
+                      offset = info.header_offset + len(info.FileHeader())
+                      if offset % 16384 != 0:
+                          unaligned.append((info.filename, offset))
+              
+              if unaligned:
+                  print('WARNING: The following libraries are not aligned at 16KB boundaries:')
+                  for name, offset in unaligned:
+                      print(f'  {name}: offset {offset}')
+                  print('This may cause issues on 16KB page size devices.')
+              else:
+                  print('✅ All native libraries are aligned at 16KB boundaries')
+          "

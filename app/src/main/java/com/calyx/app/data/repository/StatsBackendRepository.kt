@@ -24,52 +24,81 @@ import java.util.Locale
  * 
  * Logic Flow:
  * 1. Count calls locally (passed from CallLogRepository)
- * 2. Sync with Firebase (update user total, update global aggregators)
+ * 2. Sync with Firebase (update user total, update global aggregators) - ONLY IF AVAILABLE
  * 3. Fetch global stats for comparison
+ * 
+ * This is free because Firebase is optional - app works 100% offline.
  */
 class StatsBackendRepository {
 
+    // Firebase is optional - only initialize if available
+    private val firebaseAvailable by lazy { FirebaseAvailability.isFirebaseAvailable() }
+    
     private val db by lazy { 
-        FirebaseDatabase.getInstance("https://calyz-17b77-default-rtdb.asia-southeast1.firebasedatabase.app/") 
+        if (firebaseAvailable) {
+            try {
+                FirebaseDatabase.getInstance("https://calyz-17b77-default-rtdb.asia-southeast1.firebasedatabase.app/")
+            } catch (e: Exception) {
+                null
+            }
+        } else null
     }
-    private val globalRef by lazy { db.getReference("calyz-stats/global_stats") }
-    private val usersRef by lazy { db.getReference("calyz-stats/users") }
+    
+    private val globalRef by lazy { db?.getReference("calyz-stats/global_stats") }
+    private val usersRef by lazy { db?.getReference("calyz-stats/users") }
 
     private val _globalStats = MutableStateFlow(GlobalStats())
     val globalStats: StateFlow<GlobalStats> = _globalStats
     
     @Volatile
     private var listenerAttached = false
+    
+    /**
+     * Check if Firebase backend is available for use.
+     */
+    fun isAvailable(context: android.content.Context): Boolean {
+        return FirebaseAvailability.canUseFirebase(context)
+    }
 
     /**
      * Start listening for global stats updates.
      * Call this from a background coroutine to avoid blocking the main thread.
+     * 
+     * This is optional - only works when Firebase is available.
      */
     fun startListening() {
+        if (!firebaseAvailable || globalRef == null) return
         if (listenerAttached) return
         listenerAttached = true
         
-        // Listen for real-time global stats updates
-        globalRef.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                try {
-                    val stats = snapshot.getValue(GlobalStats::class.java)
-                    if (stats != null) {
-                        _globalStats.value = stats
+        try {
+            // Listen for real-time global stats updates
+            globalRef.addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    try {
+                        val stats = snapshot.getValue(GlobalStats::class.java)
+                        if (stats != null) {
+                            _globalStats.value = stats
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
-                } catch (e: Exception) {
-                    e.printStackTrace()
                 }
-            }
 
-            override fun onCancelled(error: DatabaseError) {
-                // Handle error silently
-            }
-        })
+                override fun onCancelled(error: DatabaseError) {
+                    // Handle error silently - offline mode is fine
+                }
+            })
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     /**
      * Master Sync Function - Updates everything in one go.
+     * 
+     * This is optional - if Firebase is unavailable, stats remain local-only.
+     * The app works perfectly without any backend sync.
      */
     suspend fun syncStats(
         context: android.content.Context,
@@ -78,6 +107,11 @@ class StatsBackendRepository {
         localTodayCalls: Int,
         localWeekCalls: Int
     ) = withContext(Dispatchers.IO) {
+        // Graceful degradation: skip sync if Firebase is unavailable
+        if (!firebaseAvailable || globalRef == null || usersRef == null) {
+            return@withContext
+        }
+        
         try {
             val prefs = context.getSharedPreferences("calyz_stats_sync", android.content.Context.MODE_PRIVATE)
             val todayStr = getTodayDateString()

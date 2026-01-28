@@ -127,13 +127,22 @@ class LeaderboardViewModel(application: Application) : AndroidViewModel(applicat
 
     /**
      * Load data for the Stats screen (heatmap and trends).
-     * Also triggers backend sync.
+     * Also triggers backend sync if Firebase is available.
      */
     private fun loadStatsData() {
         viewModelScope.launch {
             try {
+                // Check if backend is available
+                val backendAvailable = backendRepo.isAvailable(getApplication())
+                
+                // Update UI state with backend availability
+                _uiState.value = _uiState.value.copy(isBackendAvailable = backendAvailable)
+                
                 // 0. Start Firebase listener (non-blocking, happens on background thread)
-                backendRepo.startListening()
+                // Only if Firebase is available
+                if (backendAvailable) {
+                    backendRepo.startListening()
+                }
                 
                 // 1. Load local heatmap data (last 35 days)
                 _dailyCallCounts.value = repository.getDailyCallCounts(35)
@@ -144,32 +153,34 @@ class LeaderboardViewModel(application: Application) : AndroidViewModel(applicat
                 _thisWeekCalls.value = thisWeek
                 _lastWeekCalls.value = lastWeek
                 
-                // 3. Initiate Backend Sync
-                // Get stable User ID (create if not exists)
-                val prefs = getApplication<Application>().getSharedPreferences("calyz_prefs", android.content.Context.MODE_PRIVATE)
-                var userId = prefs.getString("user_id", null)
-                if (userId == null) {
-                    userId = java.util.UUID.randomUUID().toString()
-                    prefs.edit().putString("user_id", userId).apply()
-                }
-                
-                // Calculate local stats for sync
-                val allTimeStats = repository.getCallerStats(TimeRange.ALL_TIME)
-                val allTimeSummary = repository.calculateSummary(allTimeStats)
-                val localTotalCalls = allTimeSummary.totalCalls
-                
-                val localTodayCalls = thisWeek.lastOrNull() ?: 0 // Assuming last item is today
-                val localWeekCalls = thisWeek.sum()
-                
-                // Fire and forget sync
-                launch {
-                    backendRepo.syncStats(
-                        context = getApplication(),
-                        userId = userId,
-                        localTotalCalls = localTotalCalls,
-                        localTodayCalls = localTodayCalls, 
-                        localWeekCalls = localWeekCalls
-                    )
+                // 3. Initiate Backend Sync (only if Firebase is available)
+                if (backendAvailable) {
+                    // Get stable User ID (create if not exists)
+                    val prefs = getApplication<Application>().getSharedPreferences("calyz_prefs", android.content.Context.MODE_PRIVATE)
+                    var userId = prefs.getString("user_id", null)
+                    if (userId == null) {
+                        userId = java.util.UUID.randomUUID().toString()
+                        prefs.edit().putString("user_id", userId).apply()
+                    }
+                    
+                    // Calculate local stats for sync
+                    val allTimeStats = repository.getCallerStats(TimeRange.ALL_TIME)
+                    val allTimeSummary = repository.calculateSummary(allTimeStats)
+                    val localTotalCalls = allTimeSummary.totalCalls
+                    
+                    val localTodayCalls = thisWeek.lastOrNull() ?: 0 // Assuming last item is today
+                    val localWeekCalls = thisWeek.sum()
+                    
+                    // Fire and forget sync
+                    launch {
+                        backendRepo.syncStats(
+                            context = getApplication(),
+                            userId = userId,
+                            localTotalCalls = localTotalCalls,
+                            localTodayCalls = localTodayCalls, 
+                            localWeekCalls = localWeekCalls
+                        )
+                    }
                 }
                 
             } catch (e: Exception) {
@@ -228,5 +239,6 @@ data class LeaderboardUiState(
     val isLoading: Boolean = true,
     val callerStats: List<CallerStats> = emptyList(),
     val summary: CallSummary = CallSummary(0, 0L, 0, 0, 0, 0),
-    val error: String? = null
+    val error: String? = null,
+    val isBackendAvailable: Boolean = false  // Firebase leaderboard is optional
 )

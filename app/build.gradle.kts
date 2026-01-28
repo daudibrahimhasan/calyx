@@ -3,7 +3,13 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.gms.google-services")
+    // google-services plugin will be applied conditionally at the end
+}
+
+// Apply google-services plugin only if google-services.json exists
+// This allows the app to build without Firebase for offline-only mode
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 android {
@@ -105,7 +111,8 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    // Firebase
+    // Firebase (for global leaderboard feature)
+    // Temporarily disabled via feature flag - you can enable it later
     implementation(platform("com.google.firebase:firebase-bom:34.8.0"))
     implementation("com.google.firebase:firebase-database")
     implementation("com.google.firebase:firebase-analytics")

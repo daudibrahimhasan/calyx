@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "808886848665",
+    "project_id": "calyz-17b77",
+    "storage_bucket": "calyz-17b77.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:808886848665:android:866ad132b1669a203fbc08",
+        "android_client_info": {
+          "package_name": "com.calyx.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdWQJ9Dy0YRXLqS6KuQWAigkr0CF6N8hc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
