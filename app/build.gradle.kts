@@ -1,5 +1,4 @@
 plugins {
-    id("org.jetbrains.kotlin.android")
     id("com.android.application")
     id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -11,7 +10,7 @@ if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
 }
 
-configure<com.android.build.api.dsl.ApplicationExtension> {
+android {
     namespace = "com.calyx.app"
     compileSdk = 35
 
