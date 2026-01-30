@@ -99,11 +99,11 @@ fun LeaderboardScreen(
                         .fillMaxWidth()
                         .background(headerGradient)
                         .statusBarsPadding()
-                        .height(56.dp)
                 ) {
                     Row(
                         modifier = Modifier
-                            .fillMaxSize()
+                            .fillMaxWidth()
+                            .height(56.dp)
                             .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
