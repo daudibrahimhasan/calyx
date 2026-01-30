@@ -49,6 +49,19 @@ android {
     // composeOptions is no longer needed in Kotlin 2.x
     // The Compose Compiler is now a Gradle plugin
 
+    // Configure KSP generated sources using android.sourceSets (required for AGP 8.0+)
+    sourceSets {
+        getByName("debug") {
+            java.srcDirs("build/generated/ksp/debug/kotlin")
+        }
+        getByName("release") {
+            java.srcDirs("build/generated/ksp/release/kotlin")
+        }
+        getByName("main") {
+            java.srcDirs("build/generated/ksp/main/kotlin")
+        }
+    }
+
 
     packaging {
         resources {
