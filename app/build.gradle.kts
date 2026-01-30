@@ -57,9 +57,6 @@ android {
         getByName("release") {
             java.srcDirs("build/generated/ksp/release/kotlin")
         }
-        getByName("main") {
-            java.srcDirs("build/generated/ksp/main/kotlin")
-        }
     }
 
 
