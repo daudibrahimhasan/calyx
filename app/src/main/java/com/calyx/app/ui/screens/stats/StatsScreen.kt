@@ -262,15 +262,15 @@ private fun ActivityHeatmapCard(
                 Text("Less", fontSize = 10.sp, color = subTextColor)
                 Spacer(modifier = Modifier.width(8.dp))
                 
-                // Color scale legend: 0, 5, 15, 25, 35, 45, 55 (Samples for each range)
-                listOf(0, 5, 15, 25, 35, 45, 55).forEach { sampleCount ->
+                // Color scale legend: distinct ranges (0, 1-10, 11-20, 21-30, 31-40, 41-50, 51-100, 100+)
+                listOf(0, 5, 15, 25, 35, 45, 75, 101).forEach { sampleCount ->
                     Box(
                         modifier = Modifier
                             .size(12.dp)
                             .clip(RoundedCornerShape(3.dp))
                             .background(getHeatmapBrushByCount(sampleCount))
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                 }
                 
                 Spacer(modifier = Modifier.width(4.dp))
@@ -280,24 +280,60 @@ private fun ActivityHeatmapCard(
     }
 }
 
+// ========================================
+// HEATMAP COLOR SYSTEM - FIXED RANGES
+// ========================================
+
+/**
+ * Get heatmap color based on exact count ranges.
+ * Simple, predictable color assignment for each activity level.
+ */
+private fun getHeatmapColor(count: Int): Color {
+    return when (count) {
+        0 -> Color(0xFFE5E7EB)           // Grey (Empty)
+        in 1..10 -> Color(0xFFE6F4EA)    // Pale Mint
+        in 11..20 -> Color(0xFFB7E4C7)   // Soft Green
+        in 21..30 -> Color(0xFF74C69D)   // Fresh Green
+        in 31..40 -> Color(0xFF52B788)   // Vibrant Green
+        in 41..50 -> Color(0xFF2D6A4F)   // Rich Forest
+        in 51..100 -> Color(0xFF235347)  // Capped Emerald
+        else -> Color(0xFF081C15)        // Deep Jungle (100+)
+    }
+}
+
+/**
+ * Auto text color based on background luminance.
+ * Returns white for dark backgrounds, dark green for light backgrounds.
+ */
+private fun heatmapTextColor(bgColor: Color): Color {
+    return if (bgColor.luminance() < 0.45f) Color.White
+    else Color(0xFF1F3D2B)  // Dark green text
+}
+
+/**
+ * Get heatmap brush for a cell based on count.
+ */
+private fun getHeatmapBrushByCount(count: Int): Brush {
+    val color = getHeatmapColor(count)
+    return Brush.linearGradient(listOf(color, color))
+}
+
 @Composable
 private fun HeatmapCell(
     value: Int,
     textColor: Color
 ) {
+    val cellColor = remember(value) { getHeatmapColor(value) }
     val bgBrush = remember(value) { getHeatmapBrushByCount(value) }
     
-    // Special visual for 51+ calls ("God Mode" activity)
+    // Special visual for high activity (51+ calls)
     val isSpecial = value >= 51
-    val shape = remember { RoundedCornerShape(6.dp) } // Constant shape
+    val shape = remember { RoundedCornerShape(6.dp) }
 
-    // Determine text color based on value
+    // Auto text color based on luminance
     val cellTextColor = remember(value) {
-        when {
-            value == 0 -> Color.White.copy(alpha = 0.3f)
-            value <= 20 -> Color.Black.copy(alpha = 0.7f)
-            else -> Color.White
-        }
+        if (value == 0) Color.White.copy(alpha = 0.3f)
+        else heatmapTextColor(cellColor)
     }
 
     Box(
@@ -312,14 +348,14 @@ private fun HeatmapCell(
             ),
         contentAlignment = Alignment.Center
     ) {
-        // Special "Pulse" or "Glow" for 51+
+        // Special glow effect for high activity
         if (isSpecial) {
              Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.radialGradient(
-                            colors = listOf(Color.White.copy(alpha = 0.5f), Color.Transparent)
+                            colors = listOf(Color.White.copy(alpha = 0.4f), Color.Transparent)
                         )
                     )
              )
@@ -334,28 +370,6 @@ private fun HeatmapCell(
                 textAlign = TextAlign.Center
             )
         }
-    }
-}
-
-/**
- * Enhanced Gradient Scale: Light to Deep (Low to High activity)
- * 0: Dark Grey (Empty)
- * 1-10: Pale Mint -> Soft Green (Light)
- * 11-20: Soft Green -> Fresh Green
- * 21-30: Fresh Green -> Vibrant Green
- * 31-40: Vibrant Green -> Rich Forest
- * 41-50: Rich Forest -> Deepest Jungle (Deep)
- * 51+: Deep Jungle -> Golden Olive (Legendary Deep)
- */
-private fun getHeatmapBrushByCount(count: Int): Brush {
-    return when {
-        count <= 0 -> Brush.linearGradient(listOf(Color(0xFF1E1E1E), Color(0xFF1E1E1E))) // Dark Grey
-        count <= 10 -> Brush.verticalGradient(listOf(Color(0xFFE8F5E9), Color(0xFFC8E6C9))) // Pale -> Soft
-        count <= 20 -> Brush.verticalGradient(listOf(Color(0xFFC8E6C9), Color(0xFFA5D6A7))) // Soft -> Fresh
-        count <= 30 -> Brush.verticalGradient(listOf(Color(0xFFA5D6A7), Color(0xFF66BB6A))) // Fresh -> Vibrant
-        count <= 40 -> Brush.verticalGradient(listOf(Color(0xFF66BB6A), Color(0xFF2E7D32))) // Vibrant -> Rich
-        count <= 50 -> Brush.verticalGradient(listOf(Color(0xFF2E7D32), Color(0xFF1B5E20))) // Rich -> Deep
-        else -> Brush.verticalGradient(listOf(Color(0xFF1B5E20), Color(0xFFFFD700)))        // Deep -> Gold
     }
 }
 

@@ -44,7 +44,7 @@ fun CompactFilterStrip(
         modifier = modifier
             .fillMaxWidth()
             .background(CalyzGradients.headerGradient)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -151,7 +151,7 @@ fun HudStatsStrip(
             .fillMaxWidth()
             .height(48.dp)
             .background(DeepGreen.copy(alpha = 0.15f))
-            .padding(horizontal = 24.dp, vertical = 8.dp),
+            .padding(horizontal = 24.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {

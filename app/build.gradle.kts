@@ -48,6 +48,7 @@ android {
 
     // composeOptions is no longer needed in Kotlin 2.x
     // The Compose Compiler is now a Gradle plugin
+    // KSP source sets are handled automatically via gradle.properties flag
 
     packaging {
         resources {

@@ -91,32 +91,28 @@ fun LeaderboardScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 // ========================================
-                // COMPACT TOOLBAR (Standard Android Style)
-                // Height: ~56dp, Left-aligned title, Right actions
+                // COMPACT TOOLBAR - Minimal spacing
                 // ========================================
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(headerGradient)
                         .statusBarsPadding()
+                        .height(40.dp)  // Very compact - just enough for content
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Title - "calyz"
-                        Text(
-                            text = "Calyz",
-                            fontSize = 30.sp, 
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = LufgaFontFamily,
-                            color = Color.White,
-                            modifier = Modifier.weight(1f)
-                        )
-                        
+                    // Title - "calyz"
+                    Text(
+                        text = "Calyz",
+                        fontSize = 26.sp,  // Slightly smaller for compact header
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = LufgaFontFamily,
+                        color = Color.White
+                    )
+                    
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         // Share button
                         IconButton(
                             onClick = {
@@ -160,7 +156,6 @@ fun LeaderboardScreen(
                                 )
                             }
                         }
-                        
                     }
                 }
 
@@ -195,7 +190,7 @@ fun LeaderboardScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                         .background(MaterialTheme.colorScheme.background) // Theme-aware background
                 ) {
                     when {
@@ -268,7 +263,7 @@ private fun LeaderboardContent(
                 thirdPlace = topThree.third,
                 category = selectedCategory,
                 modifier = Modifier
-                    .padding(top = 16.dp, bottom = 8.dp)
+                    .padding(top = 4.dp, bottom = 8.dp)
                     .graphicsLayer {
                         alpha = podiumAlpha
                         scaleX = podiumScale

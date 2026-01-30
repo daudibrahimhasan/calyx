@@ -68,11 +68,11 @@ fun TopThreePodium(
     }
 
     // Fixed podium dimensions
-    val winnerCardHeight = 155.dp // Increased from 140dp
+    val winnerCardHeight = 170.dp // Increased from 155dp
     val winnerAvatarSize = 72.dp
-    val secondCardHeight = winnerCardHeight * 0.70f  // 70% of winner
+    val secondCardHeight = winnerCardHeight * 0.75f  // 75% of winner
     val secondAvatarSize = 60.dp
-    val thirdCardHeight = winnerCardHeight * 0.60f   // 60% of winner
+    val thirdCardHeight = winnerCardHeight * 0.65f   // 65% of winner
     val thirdAvatarSize = 54.dp
     
     // Total height = card height + half of avatar (avatar overlaps 50%)
@@ -309,13 +309,14 @@ private fun GlassPodiumCard(
                     )
                 }
 
-                // Rank badge - Positioned at bottom-right corner of avatar
-                val badgeSize = if (rank == 1) 22.dp else 20.dp
+                // Rank badge - Anchored at bottom-right corner of avatar
+                val badgeSize = if (rank == 1) 24.dp else 22.dp
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
+                        .offset(x = (-2).dp, y = (-2).dp) // Slight inward offset for proper anchoring
                         .size(badgeSize)
-                        .shadow(4.dp, CircleShape)
+                        .shadow(6.dp, CircleShape)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.background)
                         .padding(2.dp)
@@ -325,7 +326,7 @@ private fun GlassPodiumCard(
                 ) {
                     Text(
                         text = "$rank",
-                        fontSize = if (rank == 1) 11.sp else 9.sp,
+                        fontSize = if (rank == 1) 12.sp else 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
                         textAlign = TextAlign.Center
