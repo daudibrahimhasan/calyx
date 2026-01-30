@@ -209,13 +209,30 @@ class LeaderboardViewModel(application: Application) : AndroidViewModel(applicat
 
     /**
      * Refresh data manually.
+     * Uses forceFullSync to ensure complete call history is fetched.
      */
     fun refreshData() {
         viewModelScope.launch {
             _isLoading.value = true
-            // repository.clearAllData() // Removing this to prevent empty state flicker
-            loadCallLog()
-            loadStatsData()
+            // Use forceFullSync to ensure complete call history is fetched
+            try {
+                val stats = repository.getCallerStats(_selectedTimeRange.value, forceFullSync = true)
+                _callerStatsList.value = stats
+                _summary.value = repository.calculateSummary(stats)
+                
+                _uiState.value = LeaderboardUiState(
+                    isLoading = false,
+                    callerStats = stats,
+                    summary = _summary.value
+                )
+                
+                loadStatsData()
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Failed to refresh"
+                _uiState.value = _uiState.value.copy(isLoading = false, error = _errorMessage.value)
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 

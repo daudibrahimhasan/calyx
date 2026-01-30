@@ -125,9 +125,15 @@ class CallLogRepository(private val context: Context) {
     private suspend fun syncCallerStats() = syncMutex.withLock {
         withContext(Dispatchers.IO) {
             val lastSync = dao.getMetadata("last_sync_timestamp") ?: 0L
-            val newCalls = fetchCallLog(TimeRange.ALL_TIME, sinceTimestamp = lastSync)
+            android.util.Log.d("CallLogRepository", "Starting sync. Last sync timestamp: $lastSync (${java.util.Date(lastSync)})")
             
-            if (newCalls.isEmpty()) return@withContext
+            val newCalls = fetchCallLog(TimeRange.ALL_TIME, sinceTimestamp = lastSync)
+            android.util.Log.d("CallLogRepository", "Fetched ${newCalls.size} new calls from system call log")
+            
+            if (newCalls.isEmpty()) {
+                android.util.Log.d("CallLogRepository", "No new calls to sync")
+                return@withContext
+            }
 
             // Load all relevant daily stats into memory first to avoid N+1 queries
             val earliestNewCall = newCalls.first().date
@@ -365,14 +371,24 @@ class CallLogRepository(private val context: Context) {
      * Get fully processed and ranked caller statistics.
      * Uses the optimized Room cache for ALL_TIME range.
      * EXECUTED ON IO THREAD to prevent UI Lag.
+     * 
+     * @param forceFullSync If true, clears sync state and re-fetches all calls from the beginning.
      */
-    suspend fun getCallerStats(timeRange: TimeRange): List<CallerStats> = withContext(Dispatchers.IO) {
+    suspend fun getCallerStats(timeRange: TimeRange, forceFullSync: Boolean = false): List<CallerStats> = withContext(Dispatchers.IO) {
         if (timeRange == TimeRange.ALL_TIME) {
+            // If forcing full sync, clear metadata to fetch complete history
+            if (forceFullSync) {
+                android.util.Log.d("CallLogRepository", "Force full sync requested - clearing sync metadata")
+                dao.updateMetadata(SyncMetadata("last_sync_timestamp", 0L))
+            }
+            
             // Incremental sync - only fetches new calls!
             syncCallerStats()
             
             // Fetch from Room DB
             val cachedEntities = dao.getAllStatsList()
+            android.util.Log.d("CallLogRepository", "Fetched ${cachedEntities.size} caller stats from database")
+            
             var stats = cachedEntities.map { mapToModel(it) }
             
             // Enrich with contactId and real names (if missing in cache) - Optimized with parallel lookups
