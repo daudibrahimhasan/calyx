@@ -43,7 +43,9 @@ fun CalyzBottomNavBar(
     val contentColor = MaterialTheme.colorScheme.onSurface
     
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding(),
         color = backgroundColor,
         shadowElevation = 8.dp,
         tonalElevation = 0.dp

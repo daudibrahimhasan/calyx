@@ -44,8 +44,8 @@ fun CompactFilterStrip(
         modifier = modifier
             .fillMaxWidth()
             .background(CalyzGradients.headerGradient)
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Category toggle - takes more space
@@ -79,15 +79,15 @@ fun CompactPillToggle(
 ) {
     Row(
         modifier = modifier
-            .height(32.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .height(36.dp)
+            .clip(RoundedCornerShape(18.dp))
             .background(Color.White.copy(alpha = 0.15f))
             .border(
                 width = 1.dp,
                 color = Color.White.copy(alpha = 0.2f),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(18.dp)
             )
-            .padding(2.dp),
+            .padding(3.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         options.forEachIndexed { index, option ->
@@ -109,7 +109,7 @@ fun CompactPillToggle(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .background(backgroundColor)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -120,8 +120,8 @@ fun CompactPillToggle(
             ) {
                 Text(
                     text = option,
-                    fontSize = 11.sp,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    fontSize = 12.sp,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                     color = textColor,
                     maxLines = 1
                 )
@@ -149,9 +149,9 @@ fun HudStatsStrip(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(40.dp)
+            .height(48.dp)
             .background(DeepGreen.copy(alpha = 0.15f))
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 24.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {

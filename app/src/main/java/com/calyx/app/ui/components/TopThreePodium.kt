@@ -87,13 +87,13 @@ fun TopThreePodium(
         Row(
             modifier = Modifier
                 .fillMaxSize(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.Bottom
         ) {
             // #2 - Left position (Silver)
             Box(
                 modifier = Modifier
-                    .weight(0.28f)
+                    .weight(0.30f)
                     .fillMaxHeight(),
                 contentAlignment = Alignment.BottomCenter
             ) {
@@ -115,7 +115,7 @@ fun TopThreePodium(
             // #1 - Center position (Gold/Winner)
             Box(
                 modifier = Modifier
-                    .weight(0.44f)
+                    .weight(0.40f)
                     .fillMaxHeight(),
                 contentAlignment = Alignment.BottomCenter
             ) {
@@ -138,7 +138,7 @@ fun TopThreePodium(
             // #3 - Right position (Bronze)
             Box(
                 modifier = Modifier
-                    .weight(0.28f)
+                    .weight(0.30f)
                     .fillMaxHeight(),
                 contentAlignment = Alignment.BottomCenter
             ) {
