@@ -39,6 +39,9 @@ import com.calyx.app.ui.theme.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import com.calyx.app.data.repository.UpdateRepository
+import android.content.Intent
+import android.net.Uri
 
 // DataStore for ghost mode preference only
 private val Context.settingsDataStore by preferencesDataStore(name = "calyz_user_settings")
@@ -109,6 +112,17 @@ fun ProfileScreen(
             .background(backgroundGradient)
             .verticalScroll(rememberScrollState())
     ) {
+        // Update Check State
+        val updateRepo = remember { UpdateRepository(context) }
+        var updateInfo by remember { mutableStateOf<UpdateRepository.UpdateInfo?>(null) }
+        var isCheckingForUpdate by remember { mutableStateOf(false) }
+
+        // Check for updates when screen opens
+        LaunchedEffect(Unit) {
+            isCheckingForUpdate = true
+            updateInfo = updateRepo.checkForUpdate()
+            isCheckingForUpdate = false
+        }
         // Profile Header
         ProfileHeader(
             userName = if (userName.isBlank()) "Calyz User" else userName,
@@ -237,6 +251,29 @@ fun ProfileScreen(
                         value = "Data stays on device",
                         isDarkTheme = darkTheme
                     )
+                    
+                    Divider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = dividerColor
+                    )
+                    
+                    // Update Item
+                    UpdateItem(
+                        updateInfo = updateInfo,
+                        isChecking = isCheckingForUpdate,
+                        isDarkTheme = darkTheme,
+                        onUpdateClick = { url ->
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                            context.startActivity(intent)
+                        },
+                        onCheckClick = {
+                            scope.launch {
+                                isCheckingForUpdate = true
+                                updateInfo = updateRepo.checkForUpdate()
+                                isCheckingForUpdate = false
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -251,7 +288,7 @@ fun ProfileScreen(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Made with 💚 for call analysis\nbuilt by @daudibrahimhasan\npowered by Nexasity AI",
+                text = "Calyz is a product of Nexasity Ai\nbuilt by @daudibrahimhasan",
                 fontSize = 12.sp,
                 color = if (darkTheme) MutedSage.copy(alpha = 0.6f) else SecondaryText.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center
@@ -607,6 +644,95 @@ private fun SettingsInfoItem(
             fontSize = 14.sp,
             color = secondaryTextColor
         )
+    }
+}
+
+@Composable
+private fun UpdateItem(
+    updateInfo: UpdateRepository.UpdateInfo?,
+    isChecking: Boolean,
+    isDarkTheme: Boolean,
+    onUpdateClick: (String) -> Unit,
+    onCheckClick: () -> Unit
+) {
+    val accentColor = if (isDarkTheme) MintHighlight else VibrantGreen
+    val textColor = if (isDarkTheme) BrightMint else PrimaryText
+    val secondaryTextColor = if (isDarkTheme) MutedSage else SecondaryText
+    val highlightColor = if (isDarkTheme) NeonGreen else ForestGreen
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = !isChecking) {
+                if (updateInfo?.isUpdateAvailable == true) {
+                    onUpdateClick(updateInfo.updateUrl)
+                } else {
+                    onCheckClick()
+                }
+            }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(accentColor.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (updateInfo?.isUpdateAvailable == true) Icons.Default.SystemUpdate else Icons.Outlined.CloudSync,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = if (updateInfo?.isUpdateAvailable == true) highlightColor else accentColor
+            )
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = if (updateInfo?.isUpdateAvailable == true) "Update Available!" else "App Updates",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (updateInfo?.isUpdateAvailable == true) highlightColor else textColor
+            )
+            Text(
+                text = when {
+                    isChecking -> "Checking for updates..."
+                    updateInfo?.isUpdateAvailable == true -> "Version ${updateInfo.versionName} is ready"
+                    updateInfo != null -> "Calyz is up to date"
+                    else -> "Check for new versions"
+                },
+                fontSize = 12.sp,
+                color = secondaryTextColor
+            )
+        }
+
+        if (updateInfo?.isUpdateAvailable == true) {
+            Button(
+                onClick = { onUpdateClick(updateInfo.updateUrl) },
+                colors = ButtonDefaults.buttonColors(containerColor = highlightColor),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                modifier = Modifier.height(32.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Get IT", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        } else if (isChecking) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp,
+                color = accentColor
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = secondaryTextColor.copy(alpha = 0.5f)
+            )
+        }
     }
 }
 

@@ -4,18 +4,28 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
 import androidx.core.content.FileProvider
+import androidx.core.content.res.ResourcesCompat
+import com.calyx.app.R
 import com.calyx.app.data.models.CallerStats
 import com.calyx.app.data.models.RankingCategory
 import com.calyx.app.utils.DurationFormatter
 import com.calyx.app.utils.PhoneNumberUtils
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.graphics.DashPathEffect
+import android.graphics.Path
+import android.graphics.Rect
+import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 
 /**
  * Share Poster Generator - Creates a 1080x1920 (9:16) image for social sharing.
@@ -31,7 +41,22 @@ object SharePosterGenerator {
     
     private const val POSTER_WIDTH = 1080
     private const val POSTER_HEIGHT = 1920
+
+    // Pre-created Typefaces to avoid reloading
+    private var boldTypeface: Typeface? = null
+    private var regularTypeface: Typeface? = null
     
+    /**
+     * Prepare fonts for rendering.
+     */
+    private fun initFonts(context: Context) {
+        if (boldTypeface == null) {
+            boldTypeface = ResourcesCompat.getFont(context, R.font.lufga_bold)
+        }
+        if (regularTypeface == null) {
+            regularTypeface = ResourcesCompat.getFont(context, R.font.lufga_regular)
+        }
+    }
     /**
      * Generate and share a poster with the top 10 contacts.
      * Uses Canvas-based rendering to avoid Compose window attachment issues.
@@ -42,14 +67,20 @@ object SharePosterGenerator {
         category: RankingCategory
     ) {
         try {
+            initFonts(context)
             // Create bitmap using Canvas-based rendering
-            val bitmap = createPosterBitmap(context, topContacts.take(10), category)
+            val bitmap = createPosterBitmap(context, topContacts, category)
             
+            if (bitmap == null) {
+                shareAsText(context, topContacts.take(10), category)
+                return
+            }
+
             // Save to cache and share
             val file = saveBitmapToCache(context, bitmap)
             shareBitmap(context, file)
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("CalyzShare", "Error generating share poster", e)
             // Fallback: Share as text if bitmap generation fails
             shareAsText(context, topContacts.take(10), category)
         }
@@ -57,49 +88,57 @@ object SharePosterGenerator {
     
     /**
      * Create the poster bitmap using Canvas and Paint APIs.
-     * Matches the User's "Sage Green Story" design.
      */
     private fun createPosterBitmap(
         context: Context,
         topContacts: List<CallerStats>,
         category: RankingCategory
-    ): Bitmap {
-        // 1. Load the Template
+    ): Bitmap? {
         val options = android.graphics.BitmapFactory.Options().apply {
             inMutable = true
             inScaled = false
         }
-        val template = android.graphics.BitmapFactory.decodeResource(
-            context.resources, 
-            com.calyx.app.R.drawable.share_template,
-            options
-        )
+        
+        val template = try {
+            android.graphics.BitmapFactory.decodeResource(
+                context.resources, 
+                com.calyx.app.R.drawable.share_template,
+                options
+            )
+        } catch (e: Exception) {
+            null
+        } ?: return null
         
         val bitmap = template.copy(Bitmap.Config.ARGB_8888, true)
         val canvas = Canvas(bitmap)
         
-        // 2. Overlay User Handle
+        // Use quality paints
+        val mainPaint = Paint().apply {
+            isAntiAlias = true
+            isFilterBitmap = true
+            isDither = true
+        }
+
+        // 1. Overlay User Handle (Premium Positioning)
         val prefs = context.getSharedPreferences("calyz_prefs", Context.MODE_PRIVATE)
         val userName = prefs.getString("user_name", "USER")?.uppercase() ?: "USER"
         
         val usernamePaint = Paint().apply {
-            color = 0xCCFFFFFF.toInt() // 80% White
-            textSize = 34f
-            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            color = 0xAAFFFFFF.toInt() // 66% White
+            textSize = 36f
+            typeface = regularTypeface ?: Typeface.SANS_SERIF
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
-            letterSpacing = 0.15f
+            letterSpacing = 0.25f
         }
-        // Template already has @USERNAME placeholder, we cover it
-        // Positioning it roughly at Y=175f based on template visual
         canvas.drawText("@$userName", POSTER_WIDTH / 2f, 178f, usernamePaint)
         
-        // 3. Top 3 Podium Dynamic Data
+        // 2. Top 3 Podium Dynamic Data
         if (topContacts.isNotEmpty()) {
             drawPodium(context, canvas, topContacts.take(3), category)
         }
         
-        // 4. Remaining List (4-10)
+        // 3. Remaining List (4-10)
         val remaining = topContacts.drop(3).take(7)
         if (remaining.isNotEmpty()) {
             drawSimpleList(canvas, remaining, category)
@@ -153,7 +192,7 @@ object SharePosterGenerator {
         }
     }
     
-    // Draw #1 Rank with Starburst/Sunburst effect
+    // Draw #Rank with Starburst effect
     private fun drawStarburstItem(
         context: Context, 
         canvas: Canvas, 
@@ -163,31 +202,36 @@ object SharePosterGenerator {
         radius: Float,
         score: String
     ) {
-        // 1. Draw Photo (Circular Clip) - The starburst is already in the template
-        val photoRadius = radius
-        val photoBitmap = loadContactPhoto(context, caller.profilePhotoUri, (photoRadius * 2).toInt())
+        // 1. Draw Photo (Circular Clip)
+        val photoBitmap = loadContactPhoto(context, caller.profilePhotoUri, (radius * 2).toInt())
         
         canvas.save()
-        val photoPath = android.graphics.Path().apply {
-            addCircle(cx, cy, photoRadius, android.graphics.Path.Direction.CW)
+        val photoPath = Path().apply {
+            addCircle(cx, cy, radius, Path.Direction.CW)
         }
         canvas.clipPath(photoPath)
         
         if (photoBitmap != null) {
-            val srcRect = android.graphics.Rect(0, 0, photoBitmap.width, photoBitmap.height)
-            val dstRect = RectF(cx - photoRadius, cy - photoRadius, cx + photoRadius, cy + photoRadius)
-            canvas.drawBitmap(photoBitmap, srcRect, dstRect, null)
+            val srcRect = Rect(0, 0, photoBitmap.width, photoBitmap.height)
+            val dstRect = RectF(cx - radius, cy - radius, cx + radius, cy + radius)
+            canvas.drawBitmap(photoBitmap, srcRect, dstRect, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
         } else {
-            // Placeholder: matching the sage green theme
-            canvas.drawColor(0xFF81C784.toInt())
+            canvas.drawColor(0xFF81C784.toInt()) // Fresh green fallback
         }
         canvas.restore()
+
+        // 2. High-Quality Border
+        val borderPaint = Paint().apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeWidth = 6f
+            isAntiAlias = true
+        }
+        canvas.drawCircle(cx, cy, radius, borderPaint)
         
-        // 2. Text Below
-        // Cover "[] Calls" and "Name" placeholders
-        val scoreY = cy + radius + 115f
+        // 3. Text Below (Adjusted for better fit)
+        val scoreY = cy + radius + 120f
         val nameY = scoreY + 45f
-        
         drawTextInfo(canvas, score, caller.displayName, cx, scoreY, nameY, isCenter = true)
     }
 
@@ -205,21 +249,21 @@ object SharePosterGenerator {
         val halfW = width / 2
         val halfH = height / 2
         
-        // 1. Draw Photo Clipped to Arch
+        // 1. Build Arch Path
+        val path = Path()
+        val rect = RectF(cx - halfW, cy - halfH, cx + halfW, cy + halfH)
+        val cornerRadius = width / 2
+        path.addRoundRect(rect, floatArrayOf(
+            cornerRadius, cornerRadius,
+            cornerRadius, cornerRadius,
+            0f, 0f,
+            0f, 0f
+        ), Path.Direction.CW)
+
+        // 2. Photo Content
         val photoBitmap = loadContactPhoto(context, caller.profilePhotoUri, width.toInt())
         
         canvas.save()
-        val path = android.graphics.Path()
-        val rect = RectF(cx - halfW, cy - halfH, cx + halfW, cy + halfH)
-        
-        // Arch Window Shape
-        path.addRoundRect(rect, floatArrayOf(
-            width/2, width/2, // Top-left
-            width/2, width/2, // Top-right
-            0f, 0f,           // Bottom-right
-            0f, 0f            // Bottom-left
-        ), android.graphics.Path.Direction.CW)
-        
         canvas.clipPath(path)
         
         if (photoBitmap != null) {
@@ -230,51 +274,50 @@ object SharePosterGenerator {
             val dy = cy - scaledH / 2
             val dstRect = RectF(dx, dy, dx + scaledW, dy + scaledH)
             
-            canvas.drawBitmap(photoBitmap, null, dstRect, null)
+            canvas.drawBitmap(photoBitmap, null, dstRect, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
         } else {
-             canvas.drawColor(0xFF4A6B5C.toInt())
+             canvas.drawColor(0xFF4A6B5C.toInt()) // Mossy fallback
         }
         canvas.restore()
+
+        // 3. Subtle Border for Depth
+        val borderPaint = Paint().apply {
+            color = 0x44FFFFFF.toInt()
+            style = Paint.Style.STROKE
+            strokeWidth = 3f
+            isAntiAlias = true
+        }
+        canvas.drawPath(path, borderPaint)
         
-        // 2. Text Below
-        val scoreY = cy + halfH + 42f
-        val nameY = scoreY + 38f
+        // 4. Text Below (Adjusted for better fit)
+        val scoreY = cy + halfH + 45f
+        val nameY = scoreY + 40f
         drawTextInfo(canvas, score, caller.displayName, cx, scoreY, nameY, isCenter = false)
     }
     
     private fun drawTextInfo(canvas: Canvas, score: String, name: String, x: Float, scoreY: Float, nameY: Float, isCenter: Boolean) {
-        // Background color covering to hide placeholders if they don't perfectly align
-        val bgPaint = Paint().apply {
-            color = 0xFF6B8E63.toInt() // Template Background Color
-        }
-        
-        // Cover Score Placeholder
-        val scoreWidth = if (isCenter) 250f else 180f
-        canvas.drawRect(x - scoreWidth/2, scoreY - 40f, x + scoreWidth/2, scoreY + 10f, bgPaint)
-        
-        // Score Paint
+        // Score Paint - Bold & White
         val scorePaint = Paint().apply {
-            color = 0xFFFFFFFF.toInt()
-            textSize = if (isCenter) 42f else 32f
-            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            color = Color.WHITE
+            textSize = if (isCenter) 48f else 38f
+            typeface = boldTypeface ?: Typeface.DEFAULT_BOLD
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
+            // Add shadow for better legibility against any background
+            setShadowLayer(5f, 0f, 3f, 0xAA000000.toInt())
         }
         canvas.drawText(score, x, scoreY, scorePaint)
         
-        // Cover Name Placeholder
-        val nameWidth = if (isCenter) 300f else 200f
-        canvas.drawRect(x - nameWidth/2, nameY - 30f, x + nameWidth/2, nameY + 10f, bgPaint)
-        
-        // Name Paint
+        // Name Paint - Muted Mint White
         val namePaint = Paint().apply {
-            color = 0xCCFFFFFF.toInt()
-            textSize = if (isCenter) 28f else 22f
-            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            color = 0xEEF0FFF0.toInt() // Almost solid minty white
+            textSize = if (isCenter) 32f else 26f
+            typeface = regularTypeface ?: Typeface.SANS_SERIF
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
+            setShadowLayer(3f, 0f, 2f, 0x88000000.toInt())
         }
-        val safeName = PhoneNumberUtils.getDisplayName(name, "").take(14)
+        val safeName = PhoneNumberUtils.getDisplayName(name, "").take(16)
         canvas.drawText(safeName, x, nameY, namePaint)
     }
     
@@ -282,39 +325,30 @@ object SharePosterGenerator {
         val startY = 1118f
         val lineHeight = 92f
         
-        // Cover background for list placeholders
-        val bgPaint = Paint().apply {
-            color = 0xFF6B8E63.toInt()
-        }
-        
-        // Text Paints
+        // Premium Text Paints
         val rankNamePaint = Paint().apply {
-            color = 0xFFFFFFFF.toInt()
+            color = Color.WHITE
             textSize = 34f
-            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            typeface = regularTypeface ?: Typeface.SANS_SERIF
             textAlign = Paint.Align.LEFT
             isAntiAlias = true
+            setShadowLayer(2f, 0f, 1f, 0x88000000.toInt())
         }
         
         val scorePaint = Paint().apply {
-            color = 0xFFFFFFFF.toInt()
-            textSize = 34f
-            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            color = 0xAAFFFFFF.toInt() // Slightly muted for secondary info
+            textSize = 32f
+            typeface = regularTypeface ?: Typeface.SANS_SERIF
             textAlign = Paint.Align.RIGHT
             isAntiAlias = true
         }
         
-        val leftAnchor = 118f
-        val rightAnchor = POSTER_WIDTH - 118f
-        val listWidth = 350f
+        val leftAnchor = 130f
+        val rightAnchor = POSTER_WIDTH - 130f
         
         remaining.forEachIndexed { index, caller ->
             val y = startY + (index * lineHeight)
             val rank = 4 + index
-            
-            // Cover placeholders
-            canvas.drawRect(leftAnchor, y - 35f, leftAnchor + listWidth, y + 10f, bgPaint)
-            canvas.drawRect(rightAnchor - listWidth, y - 35f, rightAnchor, y + 10f, bgPaint)
             
             // "4. Name"
             val dispName = PhoneNumberUtils.getDisplayName(caller.displayName, caller.phoneNumber)
@@ -335,16 +369,66 @@ object SharePosterGenerator {
         
         return try {
             val uri = android.net.Uri.parse(uriString)
-            // Use standard BitmapFactory with stream
             context.contentResolver.openInputStream(uri)?.use { stream ->
-                // Decode bounds only first
-                // For simplicity, just decoding roughly. In production, use Just-In-Time scaling.
-                android.graphics.BitmapFactory.decodeStream(stream)
+                // Decode metadata only to find dimensions
+                val options = android.graphics.BitmapFactory.Options().apply {
+                    inJustDecodeBounds = true
+                }
+                android.graphics.BitmapFactory.decodeStream(stream, null, options)
+                
+                // Reset stream for actual decode
+                context.contentResolver.openInputStream(uri)?.use { newStream ->
+                    val sampleOptions = android.graphics.BitmapFactory.Options().apply {
+                        inSampleSize = calculateInSampleSize(options, reqSize, reqSize)
+                    }
+                    val decoded = android.graphics.BitmapFactory.decodeStream(newStream, null, sampleOptions)
+                    
+                    // Final crop/scale to exactly reqSize if needed
+                    if (decoded != null) {
+                        return zoomAndCropCenter(decoded, reqSize, reqSize)
+                    }
+                }
             }
+            null
         } catch (e: Exception) {
-            e.printStackTrace()
             null
         }
+    }
+
+    private fun calculateInSampleSize(options: android.graphics.BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+        val (height: Int, width: Int) = options.outHeight to options.outWidth
+        var inSampleSize = 1
+        if (height > reqHeight || width > reqWidth) {
+            val halfHeight: Int = height / 2
+            val halfWidth: Int = width / 2
+            while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
+                inSampleSize *= 2
+            }
+        }
+        return inSampleSize
+    }
+
+    private fun zoomAndCropCenter(source: Bitmap, reqWidth: Int, reqHeight: Int): Bitmap {
+        val sourceWidth = source.width
+        val sourceHeight = source.height
+        
+        val xScale = reqWidth.toFloat() / sourceWidth
+        val yScale = reqHeight.toFloat() / sourceHeight
+        val scale = maxOf(xScale, yScale)
+        
+        val scaledWidth = scale * sourceWidth
+        val scaledHeight = scale * sourceHeight
+        
+        val left = (reqWidth - scaledWidth) / 2
+        val top = (reqHeight - scaledHeight) / 2
+        
+        val targetRect = RectF(left, top, left + scaledWidth, top + scaledHeight)
+        
+        val dest = Bitmap.createBitmap(reqWidth, reqHeight, source.config ?: Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(dest)
+        canvas.drawBitmap(source, null, targetRect, Paint(Paint.FILTER_BITMAP_FLAG))
+        
+        return dest
     }
     
     // ... [Cache saving and Sharing methods remain unchanged] ...

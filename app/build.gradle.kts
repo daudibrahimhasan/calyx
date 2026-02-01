@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("com.google.devtools.ksp")
@@ -13,6 +15,22 @@ if (file("google-services.json").exists()) {
 android {
     namespace = "com.calyx.app"
     compileSdk = 35
+
+    // Load keystore properties
+    val keystorePropertiesFile = rootProject.file("keystore.properties")
+    val keystoreProperties = Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(keystorePropertiesFile.inputStream())
+    }
+
+    signingConfigs {
+        create("release") {
+            keyAlias = "calyx-key"
+            keyPassword = "daudx19"
+            storeFile = file("../calyx-release.jks")
+            storePassword = "123456"
+        }
+    }
 
     defaultConfig {
         applicationId = "com.calyx.app"
@@ -30,6 +48,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
